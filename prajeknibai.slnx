@@ -8,4 +8,8 @@
     <BuildType Solution="Default|*" Project="Release" />
     <Build Solution="Default|*" Project="false" />
   </Project>
+  <Project Path="TechServe.Web.csproj">
+    <BuildType Solution="Default|*" Project="Release" />
+    <Build Solution="Default|*" Project="true" />
+  </Project>
 </Solution>

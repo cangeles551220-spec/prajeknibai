@@ -1,0 +1,133 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#152438">
+  <title>TechServe | Repair operations workspace</title>
+  <link rel="icon" type="image/png" href="images/techserve-logo.png">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-brand">
+        <img class="brand-logo brand-logo-login" src="images/techserve-logo.png" alt="TechServe logo" />
+      </div>
+
+      <form id="loginForm">
+        <label for="loginUser">Username</label>
+        <input id="loginUser" type="text" value="admin" placeholder="admin" required>
+
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" value="admin123" placeholder="Password" required>
+
+        <div id="loginError" class="login-error hidden">Invalid username or password.</div>
+        <button type="submit" class="button button-primary login-button">Sign in</button>
+      </form>
+
+      <div id="loginMode" class="login-mode">
+        <button type="button" id="showRegister" class="button button-ghost login-register">Register</button>
+      </div>
+
+      <form id="registerForm" class="register-form hidden">
+        <h2>Create account</h2>
+        <label for="registerName">Full name</label>
+        <input id="registerName" type="text" placeholder="Your full name" required>
+
+        <label for="registerUser">Username</label>
+        <input id="registerUser" type="text" placeholder="Choose username" required>
+
+        <label for="registerPassword">Password</label>
+        <input id="registerPassword" type="password" placeholder="Create password" required>
+
+        <label for="registerRole">Role</label>
+        <select id="registerRole">
+          <option>ADMIN</option>
+          <option>MANAGER</option>
+          <option>TECHNICIAN</option>
+          <option>STAFF</option>
+          <option>INVENTORY</option>
+          <option>BILLING</option>
+        </select>
+
+        <div id="registerError" class="login-error hidden">Username is already taken.</div>
+        <div class="register-actions">
+          <button type="button" id="cancelRegister" class="button button-ghost">Cancel</button>
+          <button type="submit" class="button button-primary">Create account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <img class="brand-logo brand-logo-sidebar" src="images/techserve-logo.png" alt="TechServe logo" />
+      </div>
+      <div class="workspace-switcher">
+        <span class="avatar avatar-blue" id="workspaceInitials">SA</span>
+        <div>
+          <b id="workspaceName">TechServe HQ</b>
+          <small id="workspaceRole">ADMIN</small>
+        </div>
+        <select id="roleSelector" aria-label="Select user role">
+          <option>ADMIN</option>
+          <option>MANAGER</option>
+          <option>TECHNICIAN</option>
+          <option>STAFF</option>
+          <option>INVENTORY</option>
+          <option>BILLING</option>
+        </select>
+      </div>
+      <nav class="nav">
+        <p class="nav-label">Workspace</p>
+        <button class="nav-item active" data-view="overview"><span class="nav-icon">⌂</span>Overview</button>
+        <button class="nav-item" data-view="repairs"><span class="nav-icon">▣</span>Repair jobs <b class="nav-count">8</b></button>
+        <button class="nav-item" data-view="customers"><span class="nav-icon">♙</span>Customers</button>
+        <button class="nav-item" data-view="devices"><span class="nav-icon">▤</span>Devices</button>
+        <p class="nav-label">Operations</p>
+        <button class="nav-item" data-view="inventory"><span class="nav-icon">▥</span>Parts inventory <b class="nav-alert">3</b></button>
+        <button class="nav-item" data-view="billing"><span class="nav-icon">$</span>Billing</button>
+        <button class="nav-item" data-view="crm"><span class="nav-icon">♡</span>Customer CRM</button>
+        <button class="nav-item" data-view="reports"><span class="nav-icon">▥</span>Reports</button>
+        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span>Settings</button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="profile"><span class="avatar avatar-orange" id="profileInitials">AM</span><div><b id="profileName">Alex Morgan</b><small id="profileRole">Administrator</small></div><span class="more">•••</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="mobile-menu" id="menuToggle">☰</button>
+        <div class="breadcrumbs"><span>Workspace</span><b>/</b><strong id="pageCrumb">Overview</strong></div>
+        <div class="top-actions">
+          <label class="global-search"><span>⌕</span><input id="globalSearch" placeholder="Search anything..." aria-label="Search"></label>
+          <button class="icon-button notification" aria-label="Notifications">♢<i></i></button>
+          <button class="help">? <span>Help center</span></button>
+          <button id="logoutButton" class="button button-ghost">Logout</button>
+        </div>
+      </header>
+      <div class="content" id="content"></div>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header"><div><p class="eyebrow">Quick action</p><h2 id="modalTitle">New repair job</h2></div><button class="modal-close" id="modalClose">×</button></div>
+      <form id="jobForm">
+        <div class="form-grid">
+          <label>Customer<select id="jobCustomer" required><option>Priya Nair</option><option>Marcus Reed</option><option>Elena Cruz</option><option>Jordan Lee</option></select></label>
+          <label>Device<select required><option>Dell XPS 15</option><option>MacBook Pro 14&quot;</option><option>HP EliteBook 840</option><option>Lenovo ThinkPad T14</option></select></label>
+          <label class="wide">Problem / complaint<textarea required placeholder="Describe the customer's complaint..."></textarea></label>
+          <label>Priority<select><option>Normal</option><option>High</option><option>Urgent</option></select></label>
+          <label>Expected completion<input type="date" required></label>
+        </div>
+        <div class="modal-actions"><button type="button" class="button button-ghost" id="modalCancel">Cancel</button><button class="button button-primary">Create repair job</button></div>
+      </form>
+    </section>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
