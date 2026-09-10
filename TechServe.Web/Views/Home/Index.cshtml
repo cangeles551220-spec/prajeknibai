@@ -1,12 +1,13 @@
-﻿<!doctype html>
+@model TechServe.Web.Models.DashboardViewModel
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#152438">
   <title>TechServe | Repair operations workspace</title>
-  <link rel="icon" type="image/png" href="images/techserve-logo.png">
-  <link rel="stylesheet" href="app.css">
+  <link rel="icon" type="image/png" href="~/images/techserve-logo.png">
+  <link rel="stylesheet" href="~/app.css">
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
@@ -146,7 +147,7 @@
         <div class="form-grid">
           <label>Full name<input id="customerName" required placeholder="Customer full name"></label>
           <label>Contact number<input id="customerContact" required placeholder="+1 (555) 000-0000"></label>
-          <label>Email<input id="customerEmail" type="email" required placeholder="customer@email.com"></label>
+          <label>Email<input id="customerEmail" type="email" required placeholder="customer@@email.com"></label>
           <label class="wide">Address<textarea id="customerAddress" placeholder="Customer address"></textarea></label>
         </div>
         <div class="modal-actions"><button type="button" class="button button-ghost" id="customerModalCancel">Cancel</button><button class="button button-primary">Add customer</button></div>
@@ -164,6 +165,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=crm-reference-1"></script>
+  <script src="~/app.js?v=crm-reference-1"></script>
 </body>
 </html>

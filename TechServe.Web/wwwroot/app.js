@@ -3,31 +3,37 @@
     initials: 'AD',
     profile: { name: 'Alex Morgan', role: 'Administrator' },
     defaultView: 'overview',
-    nav: ['overview', 'repairs', 'customers', 'devices', 'inventory', 'billing', 'crm', 'reports', 'settings']
+    nav: ['overview', 'repairs', 'tracking', 'customers', 'devices', 'technicians', 'inventory', 'billing', 'crm', 'reports', 'settings']
   },
   MANAGER: {
     initials: 'MG',
     profile: { name: 'Maya Lopez', role: 'Manager' },
     defaultView: 'overview',
-    nav: ['overview', 'repairs', 'customers', 'devices', 'inventory', 'billing', 'crm', 'reports']
+    nav: ['overview', 'repairs', 'tracking', 'customers', 'devices', 'technicians', 'inventory', 'billing', 'crm', 'reports']
   },
   TECHNICIAN: {
     initials: 'TC',
     profile: { name: 'Noah Williams', role: 'Technician' },
     defaultView: 'repairs',
-    nav: ['overview', 'repairs', 'devices', 'crm']
+    nav: ['overview', 'repairs', 'tracking', 'devices', 'crm']
   },
   STAFF: {
     initials: 'ST',
-    profile: { name: 'Jamie Cole', role: 'Staff' },
+    profile: { name: 'Jamie Cole', role: 'Employee / Service Staff' },
     defaultView: 'customers',
-    nav: ['overview', 'customers', 'devices', 'repairs', 'billing', 'crm']
+    nav: ['overview', 'customers', 'devices', 'repairs', 'tracking', 'billing', 'crm']
   },
   INVENTORY: {
     initials: 'IN',
     profile: { name: 'Riley Chen', role: 'Inventory' },
     defaultView: 'inventory',
     nav: ['overview', 'inventory', 'devices', 'repairs', 'reports']
+  },
+  BILLING: {
+    initials: 'BL',
+    profile: { name: 'Sofia Patel', role: 'Billing Staff' },
+    defaultView: 'billing',
+    nav: ['overview', 'billing', 'customers', 'repairs', 'crm', 'reports']
   },
   BILLING: {
     initials: 'BL',
@@ -63,7 +69,9 @@ const state = {
     {id:'INV-0871',job:'JOB-1045',customer:'Jordan Lee',amount:'$185.00',paid:'$0.00',status:'Unpaid',date:'Sep 08, 2024'},
     {id:'INV-0870',job:'JOB-1044',customer:'Maya Thompson',amount:'$324.50',paid:'$324.50',status:'Paid',date:'Sep 08, 2024'},
     {id:'INV-0869',job:'JOB-1043',customer:'Owen Brooks',amount:'$96.00',paid:'$50.00',status:'Partially Paid',date:'Sep 07, 2024'},
-  ]
+  ],
+  assignmentJobId: null
+  ,crmCustomerIndex: 0
 };
 
 const content = document.getElementById('content');
@@ -78,6 +86,7 @@ const statusClass = s => ({
   'Unpaid':'status-red',
   'Partially Paid':'status-orange',
   'Released':'status-green',
+  'Ready for Pickup':'status-green',
   'Cancelled':'status-red',
   'Returning':'status-green',
   'Active':'status-blue'
@@ -140,12 +149,34 @@ function renderOverview() {
 
 function renderRepairs() {
   const canCreate = ['ADMIN','MANAGER','STAFF'].includes(state.currentUserRole);
-  return layout('Repair jobs','Manage every repair from intake to release.', canCreate ? '<button class="button button-primary" id="newJob">＋ New repair job</button>' : '') +
-    `<section class="panel"><div class="toolbar"><input class="table-search" id="tableSearch" placeholder="⌕  Search job, customer or device..."><select class="select" id="statusFilter"><option>All statuses</option><option>In Repair</option><option>Diagnosing</option><option>Waiting for Parts</option><option>Testing</option><option>Completed</option></select><select class="select"><option>All technicians</option><option>Noah Williams</option><option>Sofia Patel</option><option>Liam Chen</option></select><span class="spacer"></span><button class="button button-ghost">⇩ Export</button></div><div class="table-wrap"><table class="data-table" id="repairTable"><thead><tr><th>Job order</th><th>Customer</th><th>Device / complaint</th><th>Technician</th><th>Received</th><th>Status</th><th>Progress</th><th></th></tr></thead><tbody>${state.jobs.map(j=>`<tr><td><b>${j.id}</b><small style="display:block;color:#9aa7b7;margin-top:4px">${j.priority} priority</small></td><td>${person(j.customer,j.initials)}</td><td><b>${j.device}</b><small style="display:block;color:#8290a1;margin-top:4px">${j.issue}</small></td><td>${j.tech}</td><td>${j.received}</td><td>${status(j.status)}</td><td><span class="progress-bar"><i style="width:${j.progress}%"></i></span>${j.progress}%</td><td><button class="panel-link">•••</button></td></tr>`).join('')}</tbody></table></div></section>`;
+  const tabs = ['All', 'Pending', 'Diagnosing', 'In Repair', 'Waiting for Parts', 'Ready for Pickup', 'Completed', 'Cancelled'];
+  const statusLabel = s => s === 'Testing' ? 'Ready for Pickup' : s;
+  const priorityClass = p => p === 'Urgent' || p === 'High' ? 'priority-high' : p === 'Low' ? 'priority-low' : 'priority-medium';
+  return `<div class="repair-heading"><div><h1>Repair Jobs</h1><p>${state.jobs.length + 1} total job orders</p></div>${canCreate ? '<button class="button button-primary" id="newJob">＋ Create Repair Job</button>' : ''}</div>
+    <div class="repair-tabs">${tabs.map((tab, index) => `<button class="repair-tab ${index === 0 ? 'active' : ''}" data-status-tab="${tab}">${tab}</button>`).join('')}</div>
+    <section class="panel repair-search-panel"><input class="table-search" id="tableSearch" placeholder="⌕  Search job ID, customer, technician..."><button class="button button-ghost">▽ Filter</button></section>
+    <section class="panel repair-table-panel"><div class="table-wrap"><table class="data-table repair-table" id="repairTable"><thead><tr><th>Job ID</th><th>Customer</th><th>Device</th><th>Problem</th><th>Technician</th><th>Expected</th><th>Priority</th><th>Status</th><th>Cost</th><th>Actions</th></tr></thead><tbody>${state.jobs.map((j, index) => `<tr data-repair-status="${statusLabel(j.status)}"><td><b class="repair-id">RJ-2024-${String(index + 1).padStart(3, '0')}</b></td><td>${j.customer}</td><td>${j.device}</td><td>${j.issue}</td><td>${j.tech}</td><td>${j.due}</td><td><span class="priority-badge ${priorityClass(j.priority)}">${j.priority}</span></td><td>${status(statusLabel(j.status))}</td><td><b>${['₱3,500','₱1,800','₱6,500','₱2,200','₱900'][index] || '₱0'}</b></td><td class="repair-actions"><button>◉</button><button>／</button><button class="assign-technician" data-job-id="${j.id}">♧</button><button>▣</button></td></tr>`).join('')}</tbody></table></div></section>`;
+}
+
+function renderTracking() {
+  const stages = ['Received', 'Diagnosis', 'In Repair', 'Testing', 'Ready for Pickup', 'Completed'];
+  const trackingJobs = [
+    { id: 'RJ-2024-001', customer: 'Maria Santos', device: 'Lenovo ThinkPad E15', tech: 'Carlo Mendoza', due: '2024-11-22', received: '2024-11-18', amount: '₱3,500', current: 2 },
+    { id: 'RJ-2024-002', customer: 'Jose Reyes', device: 'HP Pavilion TP01', tech: 'Diana Aquino', due: '2024-11-21', received: '2024-11-17', amount: '₱1,800', current: 4 },
+    { id: 'RJ-2024-003', customer: 'Ahn Villanueva', device: 'MacBook Air M2', tech: 'Carlo Mendoza', due: '2024-11-20', received: '2024-11-15', amount: '₱6,500', current: 2 },
+    { id: 'RJ-2024-004', customer: 'Liza Fernandez', device: 'Dell Inspiron 3891', tech: 'Ben Torres', due: '2024-11-23', received: '2024-11-19', amount: '₱2,200', current: 1 },
+    { id: 'RJ-2024-005', customer: 'Rafael Cruz', device: 'ASUS VivoBook 15', tech: 'Diana Aquino', due: '2024-11-24', received: '2024-11-20', amount: '₱900', current: 0 },
+    { id: 'RJ-2024-006', customer: 'Marco Dela Rosa', device: 'Dell XPS 15', tech: 'Ben Torres', due: '2024-11-19', received: '2024-11-16', amount: '₱8,500', current: 5 }
+  ];
+  return layout('Repair Status Tracking', 'Live progress tracking for all active repair jobs') +
+    `<div class="tracking-list">${trackingJobs.map(job => `<article class="tracking-card">
+      <div class="tracking-header"><div><b class="tracking-id">${job.id}</b><strong>${job.customer}</strong><p>${job.device} · ${job.tech} · Expected: ${job.due}</p></div><div class="tracking-amount"><small>Received: ${job.received}</small><b>${job.amount}</b></div></div>
+      <div class="tracking-timeline">${stages.map((stage, index) => `<div class="tracking-stage ${index < job.current ? 'complete' : index === job.current ? 'current' : ''}"><span>${index < job.current ? '✓' : index === job.current ? '◉' : '○'}</span><small>${stage}</small></div>`).join('')}</div>
+    </article>`).join('')}</div>`;
 }
 
 function renderCustomers() {
-  return layout('Customers','Keep customer profiles, contact details and repair history in one place.','<button class="button button-primary">＋ Add customer</button>')+
+  return layout('Customers','Keep customer profiles, contact details and repair history in one place.','<button class="button button-primary" id="newCustomer">＋ Add customer</button>')+
     `<section class="panel"><div class="toolbar"><input class="table-search" id="tableSearch" placeholder="⌕  Search customers..."><select class="select"><option>All customers</option><option>Returning customers</option><option>Active</option></select><span class="spacer"></span><button class="button button-ghost">⇩ Export</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Customer</th><th>Customer ID</th><th>Contact</th><th>Email</th><th>Repair jobs</th><th>Status</th><th></th></tr></thead><tbody>${state.customers.map(c=>`<tr><td>${person(c.name)}</td><td>${c.id}</td><td>${c.contact}</td><td>${c.email}</td><td><b>${c.jobs}</b></td><td>${status(c.status)}</td><td><button class="panel-link">View profile</button></td></tr>`).join('')}</tbody></table></div></section>`;
 }
 
@@ -154,9 +185,45 @@ function renderDevices() {
   return layout('Devices','A complete view of every device registered with your shop.','<button class="button button-primary">＋ Register device</button>')+`<section class="panel"><div class="toolbar"><input class="table-search" placeholder="⌕  Search device, serial or customer..."><select class="select"><option>All device types</option><option>Laptop</option><option>Desktop</option><option>MacBook</option></select><span class="spacer"></span><button class="button button-ghost">⇩ Export</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Device ID</th><th>Customer</th><th>Device</th><th>Serial number</th><th>Operating system</th><th>Condition</th><th>Repair history</th></tr></thead><tbody>${devices.map(d=>`<tr><td><b>${d[0]}</b></td><td>${person(d[1])}</td><td><b>${d[2]}</b></td><td class="tag">${d[3]}</td><td>${d[4]}</td><td>${status(d[5]==='Fair'?'Diagnosing':'Completed')}</td><td><button class="panel-link">2 jobs →</button></td></tr>`).join('')}</tbody></table></div></section>`;
 }
 
+function renderTechnicians() {
+  const technicians = [
+    { name: 'Carlo Mendoza', specialty: 'Hardware Repair, Motherboard', availability: 'Busy', jobs: 3, completed: 47, capacity: 5 },
+    { name: 'Diana Aquino', specialty: 'Software, OS Installation', availability: 'Available', jobs: 2, completed: 63, capacity: 5 },
+    { name: 'Ben Torres', specialty: 'Screen Replacement, Apple', availability: 'Busy', jobs: 2, completed: 38, capacity: 5 },
+    { name: 'Grace Lim', specialty: 'Networking, Data Recovery', availability: 'Available', jobs: 0, completed: 55, capacity: 5 },
+    { name: 'Ryan Castillo', specialty: 'Laptop Repair, Soldering', availability: 'On Leave', jobs: 1, completed: 29, capacity: 5 }
+  ];
+  return layout('Technicians', 'Manage technicians and job assignments',
+    '<div class="technician-actions"><button class="button button-ghost" id="assignTechnicianJob">♧ Assign Technician</button><button class="button button-primary">＋ Add Technician</button></div>') +
+    `<div class="technician-grid">${technicians.map(tech => {
+      const code = initials(tech.name);
+      const workload = Math.round((tech.jobs / tech.capacity) * 100);
+      const availabilityClass = tech.availability === 'Available' ? 'status-green' : tech.availability === 'Busy' ? 'status-orange' : 'status-gray';
+      return `<article class="technician-card">
+        <div class="technician-card-top"><span class="technician-avatar">${code}</span><div><h3>${tech.name}</h3><p>${tech.specialty}</p></div></div>
+        <div class="technician-statuses"><span class="status ${availabilityClass}">${tech.availability}</span><span class="status status-blue">Active</span></div>
+        <div class="technician-metrics"><div><b>${tech.jobs}</b><small>Current Jobs</small></div><div><b>${tech.completed}</b><small>Completed</small></div></div>
+        <div class="technician-workload"><div><span>Workload</span><span>${tech.jobs}/${tech.capacity}</span></div><i><em style="width:${workload}%"></em></i></div>
+        <div class="technician-card-actions"><button class="button button-ghost">View Profile</button><button class="button button-primary assign-technician-card" data-technician="${tech.name}">Assign Job</button></div>
+      </article>`;
+    }).join('')}</div>`;
+}
+
 function renderInventory() {
-  return layout('Parts inventory','Track stock levels, suppliers and parts used in active repairs.','<button class="button button-primary">＋ Add part</button>')+
-    `<div class="metric-grid"><div class="panel metric"><label>Inventory value</label><strong>$48,290</strong><small>↗ 6.2% this month</small></div><div class="panel metric"><label>Low stock items</label><strong style="color:var(--orange)">3</strong><small style="color:var(--orange)">Needs attention</small></div><div class="panel metric"><label>Out of stock</label><strong style="color:var(--red)">1</strong><small style="color:var(--red)">Reorder now</small></div></div><section class="panel"><div class="toolbar"><input class="table-search" placeholder="⌕  Search part or supplier..."><select class="select"><option>All categories</option><option>Power</option><option>Storage</option><option>Display</option><option>Memory</option></select><span class="spacer"></span><button class="button button-light">＋ Stock in</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Part</th><th>Category</th><th>Supplier</th><th>In stock</th><th>Reorder level</th><th>Unit cost</th><th>Stock status</th><th></th></tr></thead><tbody>${state.parts.map(p=>`<tr><td><b>${p.name}</b><small style="display:block;color:#9aa7b7;margin-top:4px">${p.id}</small></td><td>${p.category}</td><td>${p.supplier}</td><td><b>${p.stock}</b></td><td>${p.reorder}</td><td>${p.cost}</td><td>${p.stock===0?status('Unpaid'):p.stock<=p.reorder?status('Waiting for Parts'):status('Completed')}</td><td><button class="panel-link">•••</button></td></tr>`).join('')}</tbody></table></div></section>`;
+  const parts = [
+    { id: 'P-001', name: 'DDR4 8GB RAM 3200MHz', category: 'Memory', brand: 'Kingston', compatible: 'Laptops/Desktops', stock: 24, reorder: 5, cost: '₱1,450', supplier: 'TechParts PH' },
+    { id: 'P-002', name: '2.5" 500GB SSD SATA', category: 'Storage', brand: 'Crucial', compatible: 'Laptops', stock: 3, reorder: 5, cost: '₱2,100', supplier: 'PC Hub Caloocan' },
+    { id: 'P-003', name: '15.6" FHD LCD Panel', category: 'Display', brand: 'BOE', compatible: 'Lenovo/Dell 15"', stock: 0, reorder: 2, cost: '₱3,800', supplier: 'ScreenZone PH' },
+    { id: 'P-004', name: '60W USB-C Charger Brick', category: 'Power', brand: 'Belkin', compatible: 'Universal', stock: 18, reorder: 4, cost: '₱850', supplier: 'TechParts PH' },
+    { id: 'P-005', name: 'Laptop Cooling Fan', category: 'Cooling', brand: 'Generic', compatible: 'ASUS/HP', stock: 7, reorder: 3, cost: '₱380', supplier: 'PC Hub Caloocan' },
+    { id: 'P-006', name: 'MacBook Keyboard (M1)', category: 'Input', brand: 'Apple', compatible: 'MacBook Air M1', stock: 2, reorder: 2, cost: '₱7,200', supplier: 'Apple PH Parts' },
+    { id: 'P-007', name: '500W ATX PSU 80+ Bronze', category: 'Power', brand: 'Corsair', compatible: 'Desktops', stock: 11, reorder: 3, cost: '₱3,200', supplier: 'TechParts PH' }
+  ];
+  const stockStatus = part => part.stock === 0 ? '<span class="inventory-status inventory-out">Out of Stock</span>' : part.stock <= part.reorder ? '<span class="inventory-status inventory-low">Low Stock</span>' : '<span class="inventory-status inventory-in">In Stock</span>';
+  return layout('Parts Inventory', 'Manage parts and stock levels',
+    '<div class="inventory-actions"><button class="button inventory-stock-in">⇩ Stock In</button><button class="button inventory-stock-out">⇧ Stock Out</button><button class="button button-primary">＋ Add Part</button></div>') +
+    `<div class="inventory-summary"><div><b>7</b><span>Total Parts</span></div><div><b class="summary-green">4</b><span>In Stock</span></div><div><b class="summary-orange">2</b><span>Low Stock</span></div><div><b class="summary-red">1</b><span>Out of Stock</span></div><div><b class="summary-teal">₱108.7k</b><span>Inventory Value</span></div></div>
+    <section class="panel inventory-panel"><input class="table-search inventory-search" id="inventorySearch" placeholder="⌕  Search by name, ID, or category..."><div class="table-wrap"><table class="data-table inventory-table"><thead><tr><th>Part ID</th><th>Name</th><th>Category</th><th>Brand</th><th>Compatible</th><th>Qty</th><th>Reorder</th><th>Unit cost</th><th>Supplier</th><th>Status</th><th>Actions</th></tr></thead><tbody>${parts.map(p=>`<tr><td><a class="inventory-id">${p.id}</a></td><td><b>${p.name}</b></td><td><span class="inventory-category">${p.category}</span></td><td>${p.brand}</td><td>${p.compatible}</td><td><b class="${p.stock === 0 ? 'qty-out' : p.stock <= p.reorder ? 'qty-low' : 'qty-good'}">${p.stock}</b></td><td>${p.reorder}</td><td><b>${p.cost}</b></td><td>${p.supplier}</td><td>${stockStatus(p)}</td><td><button class="inventory-icon-button">⌕</button><button class="inventory-icon-button delete">▣</button></td></tr>`).join('')}</tbody></table></div></section>`;
 }
 
 function renderBilling() {
@@ -165,8 +232,18 @@ function renderBilling() {
 }
 
 function renderCrm() {
-  return layout('Customer CRM','Build stronger relationships with notes, reminders and activity history.','<button class="button button-primary">＋ Add follow-up</button>')+
-    `<div class="dashboard-grid"><section class="panel"><div class="panel-header"><div><h3>Follow-up reminders</h3><p>Stay ahead of customer communication</p></div><button class="panel-link">View calendar</button></div><div class="alert-list"><div class="alert"><div class="alert-icon">◷</div><div><b>Call Priya Nair</b><small>Warranty check-in · Today at 2:30 PM</small></div><span class="status status-orange">Due today</span></div><div class="alert"><div class="alert-icon">◷</div><div><b>Email Marcus Reed</b><small>Screen replacement ready · Tomorrow</small></div><span class="status status-blue">Upcoming</span></div><div class="alert"><div class="alert-icon">◷</div><div><b>Follow up with Jordan Lee</b><small>Collect feedback · Sep 12</small></div><span class="status status-gray">Upcoming</span></div></div></section><section class="panel"><div class="panel-header"><div><h3>Customer health</h3><p>Based on recent activity and history</p></div></div><div class="metric-grid" style="margin:0;grid-template-columns:1fr 1fr"><div class="metric" style="padding:8px"><label>Returning customers</label><strong>248</strong><small>19.3% of total</small></div><div class="metric" style="padding:8px"><label>New this month</label><strong>86</strong><small>↗ 12.4%</small></div></div></section></div><section class="panel recent"><div class="panel-header"><div><h3>Recent customer activity</h3><p>Notes and interactions from your team</p></div><button class="panel-link">View all activity →</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Customer</th><th>Activity</th><th>By</th><th>Date</th><th></th></tr></thead><tbody><tr><td>${person('Priya Nair')}</td><td>Added note: “Prefers text updates”</td><td>Alex Morgan</td><td>Today, 10:42 AM</td><td><button class="panel-link">View</button></td></tr><tr><td>${person('Marcus Reed')}</td><td>Invoice INV-0870 marked as paid</td><td>Jamie Cole</td><td>Today, 9:18 AM</td><td><button class="panel-link">View</button></td></tr><tr><td>${person('Jordan Lee')}</td><td>Repair job JOB-1045 created</td><td>Alex Morgan</td><td>Yesterday</td><td><button class="panel-link">View</button></td></tr></tbody></table></div></section>`;
+  const customers = [
+    { name: 'Maria Santos', id: 'C-001', initials: 'MS', phone: '0917-234-5678', email: 'maria.santos@gmail.com', address: '42 Rizal St, Makati', device: 'Lenovo ThinkPad E15', job: 'RJ-2024-001', status: 'In Repair', cost: '₱3,500', invoice: 'INV-2024-003', date: '2024-11-22', paid: 'Partially Paid', repairs: 7, spent: '₱3,500', joined: 'Nov 18', notes: 3 },
+    { name: 'Jose Reyes', id: 'C-002', initials: 'JR', phone: '0918-456-7890', email: 'jose.reyes@gmail.com', address: '18 Mabini St, Quezon City', device: 'HP Pavilion TP01', job: 'RJ-2024-002', status: 'Ready for Pickup', cost: '₱1,800', invoice: 'INV-2024-004', date: '2024-11-21', paid: 'Paid', repairs: 4, spent: '₱8,200', joined: 'Nov 17', notes: 2 },
+    { name: 'Ana Villanueva', id: 'C-003', initials: 'AV', phone: '0919-222-3456', email: 'ana.villanueva@gmail.com', address: '9 Jupiter St, Makati', device: 'MacBook Air M2', job: 'RJ-2024-003', status: 'Waiting for Parts', cost: '₱6,500', invoice: 'INV-2024-005', date: '2024-11-20', paid: 'Partially Paid', repairs: 3, spent: '₱12,500', joined: 'Nov 15', notes: 4 },
+    { name: 'Marco Dela Rosa', id: 'C-004', initials: 'MD', phone: '0920-333-4567', email: 'marco.delarosa@gmail.com', address: '7 P. Gomez St, Manila', device: 'Dell XPS 15', job: 'RJ-2024-006', status: 'Completed', cost: '₱8,500', invoice: 'INV-2024-006', date: '2024-11-19', paid: 'Paid', repairs: 6, spent: '₱24,000', joined: 'Nov 16', notes: 5 }
+  ];
+  const customer = customers[state.crmCustomerIndex] || customers[0];
+  return `<div class="crm-heading"><div><h1>Customer CRM</h1><p>Customer relationships and service history</p></div><div class="crm-customer-tabs">${customers.map((item, index) => `<button class="${index === state.crmCustomerIndex ? 'active' : ''}" data-crm-customer="${index}">${item.name.split(' ')[0]}</button>`).join('')}</div></div>
+    <div class="crm-layout"><aside class="crm-profile-card"><div class="crm-avatar">${customer.initials}</div><h2>${customer.name}</h2><p class="crm-id">${customer.id}</p><span class="crm-active">● Active Customer</span><div class="crm-contact"><p>♧ ${customer.phone}</p><p>✉ ${customer.email}</p><p>⌖ ${customer.address}</p></div><div class="crm-profile-actions"><button class="button button-ghost">Edit</button><button class="button button-primary">New Job</button></div><div class="crm-stats"><div><b>${customer.repairs}</b><small>Total Repairs</small></div><div><b>${customer.spent}</b><small>Total Spent</small></div><div><b>${customer.joined}</b><small>Last Visit</small></div><div><b>${customer.notes}</b><small>Notes</small></div></div></aside>
+    <main class="crm-details"><section class="panel crm-section"><h3>Repair History</h3><table class="data-table"><thead><tr><th>JOB ID</th><th>DEVICE</th><th>PROBLEM</th><th>STATUS</th><th>COST</th></tr></thead><tbody><tr><td><b class="repair-id">${customer.job}</b></td><td>${customer.device}</td><td>Laptop not turning on, battery drains immediately</td><td>${status(customer.status)}</td><td><b>${customer.cost}</b></td></tr></tbody></table></section>
+    <section class="panel crm-section"><h3>Billing History</h3><table class="data-table"><thead><tr><th>INVOICE</th><th>DATE</th><th>TOTAL</th><th>STATUS</th></tr></thead><tbody><tr><td><b class="repair-id">${customer.invoice}</b></td><td>${customer.date}</td><td><b>${customer.cost}</b></td><td>${status(customer.paid)}</td></tr></tbody></table></section>
+    <section class="panel crm-section crm-timeline"><h3>Customer Timeline</h3><div><p>● &nbsp; New repair job created: ${customer.job}<small>Nov 18, 2024</small></p><p>● &nbsp; Payment received: ${customer.cost} for RJ-2024-006<small>Nov 10, 2024</small></p><p>● &nbsp; Device checked in: ${customer.device}<small>Oct 28, 2024</small></p><p>● &nbsp; Customer note updated by Mark Bautista</p></div></section></main></div>`;
 }
 
 function renderReports() {
@@ -185,8 +262,10 @@ function render() {
   const views = {
     overview: renderOverview,
     repairs: renderRepairs,
+    tracking: renderTracking,
     customers: renderCustomers,
     devices: renderDevices,
+    technicians: renderTechnicians,
     inventory: renderInventory,
     billing: renderBilling,
     crm: renderCrm,
@@ -197,6 +276,26 @@ function render() {
   document.getElementById('pageCrumb').textContent = state.view.charAt(0).toUpperCase() + state.view.slice(1);
   document.querySelectorAll('.nav-item[data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === state.view));
   bindViewActions();
+  if (state.view === 'customers') loadLiveCustomers();
+}
+
+async function loadLiveCustomers() {
+  const response = await fetch('/api/customers');
+  if (!response.ok) throw new Error('Unable to load customers from the database.');
+  const records = await response.json();
+  state.customers = records.map(customer => ({
+    id: `CUS-${String(customer.id).padStart(4, '0')}`,
+    name: customer.name,
+    contact: customer.contact,
+    email: customer.email,
+    address: customer.address,
+    jobs: customer.jobs,
+    status: customer.status
+  }));
+  if (state.view === 'customers') {
+    content.innerHTML = renderCustomers();
+    bindViewActions();
+  }
 }
 
 function openModal(){
@@ -209,6 +308,28 @@ function closeModal(){
   document.getElementById('modalBackdrop').classList.remove('open');
 }
 
+function openCustomerModal(){
+  document.getElementById('customerModalBackdrop').classList.add('open');
+  document.getElementById('customerForm').reset();
+}
+
+function closeCustomerModal(){
+  document.getElementById('customerModalBackdrop').classList.remove('open');
+}
+
+function openAssignmentModal(jobId) {
+  const job = state.jobs.find(item => item.id === jobId);
+  if (!job) return;
+  state.assignmentJobId = jobId;
+  document.getElementById('assignmentTechnician').value = job.tech === 'Unassigned' ? '' : job.tech;
+  document.getElementById('assignmentModalBackdrop').classList.add('open');
+}
+
+function closeAssignmentModal() {
+  document.getElementById('assignmentModalBackdrop').classList.remove('open');
+  state.assignmentJobId = null;
+}
+
 function bindViewActions(){
   document.querySelectorAll('[data-view-link]').forEach(btn => btn.onclick = () => {
     state.view = btn.dataset.viewLink;
@@ -217,6 +338,24 @@ function bindViewActions(){
 
   const newJob = document.getElementById('newJob');
   if (newJob) newJob.onclick = openModal;
+
+  const newCustomer = document.getElementById('newCustomer');
+  if (newCustomer) newCustomer.onclick = openCustomerModal;
+
+  document.querySelectorAll('.assign-technician').forEach(button => {
+    button.onclick = () => openAssignmentModal(button.dataset.jobId);
+  });
+  document.querySelectorAll('.assign-technician-card').forEach(button => {
+    button.onclick = () => {
+      state.view = 'repairs';
+      render();
+    };
+  });
+  const assignTechnicianJob = document.getElementById('assignTechnicianJob');
+  if (assignTechnicianJob) assignTechnicianJob.onclick = () => {
+    state.view = 'repairs';
+    render();
+  };
 
   const search = document.getElementById('tableSearch');
   if (search) search.oninput = () => {
@@ -233,29 +372,64 @@ function bindViewActions(){
       row.style.display = matches ? '' : 'none';
     });
   };
+  document.querySelectorAll('.repair-tab').forEach(tab => tab.onclick = () => {
+    document.querySelectorAll('.repair-tab').forEach(item => item.classList.remove('active'));
+    tab.classList.add('active');
+    const selected = tab.dataset.statusTab;
+    document.querySelectorAll('#repairTable tbody tr').forEach(row => {
+      row.style.display = selected === 'All' || row.dataset.repairStatus === selected ? '' : 'none';
+    });
+  });
+  document.querySelectorAll('[data-crm-customer]').forEach(tab => tab.onclick = () => {
+    state.crmCustomerIndex = Number(tab.dataset.crmCustomer);
+    render();
+  });
 }
 
+document.querySelectorAll('[data-crm-customer]').forEach(tab => tab.onclick = () => {
+  state.crmCustomerIndex = Number(tab.dataset.crmCustomer);
+  render();
+});
+
 const defaultAuthUsers = {
-  admin: { password: 'admin123', role: 'ADMIN' },
-  manager: { password: 'manager123', role: 'MANAGER' },
-  technician: { password: 'tech123', role: 'TECHNICIAN' },
-  staff: { password: 'staff123', role: 'STAFF' },
-  inventory: { password: 'inventory123', role: 'INVENTORY' },
-  billing: { password: 'billing123', role: 'BILLING' }
+  admin: { password: 'Admin@123', role: 'ADMIN' },
+  manager: { password: 'Manager@123', role: 'MANAGER' },
+  employee: { password: 'Employee@123', role: 'STAFF' },
+  technician: { password: 'Technician@123', role: 'TECHNICIAN' },
+  inventory: { password: 'Inventory@123', role: 'INVENTORY' },
+  billing: { password: 'Billing@123', role: 'BILLING' }
 };
 
 function loadAuthUsers() {
   const saved = JSON.parse(localStorage.getItem('techserve_users') || 'null');
-  return { ...defaultAuthUsers, ...(saved || {}) };
+  return { ...(saved || {}), ...defaultAuthUsers };
 }
 
 function saveAuthUsers(users) {
   localStorage.setItem('techserve_users', JSON.stringify(users));
 }
 
+function logActivity(action, details = '') {
+  const session = JSON.parse(localStorage.getItem('techserve_session') || 'null');
+  const entries = JSON.parse(localStorage.getItem('techserve_activity') || '[]');
+  entries.unshift({
+    action,
+    details,
+    user: session?.user || 'anonymous',
+    role: session?.role || 'anonymous',
+    at: new Date().toISOString()
+  });
+  localStorage.setItem('techserve_activity', JSON.stringify(entries.slice(0, 100)));
+}
+
 function syncAuthVisibility() {
   const auth = JSON.parse(localStorage.getItem('techserve_session') || 'null');
-  const isLoggedIn = !!auth;
+  const sessionAge = auth?.createdAt ? Date.now() - auth.createdAt : Number.POSITIVE_INFINITY;
+  const isLoggedIn = !!auth && sessionAge < 8 * 60 * 60 * 1000 && roles[auth.role];
+  if (auth && !isLoggedIn) {
+    localStorage.removeItem('techserve_session');
+    logActivity('session_expired');
+  }
   const loginScreen = document.getElementById('loginScreen');
   const appShell = document.getElementById('appShell');
   if (loginScreen) loginScreen.classList.toggle('hidden', isLoggedIn);
@@ -268,13 +442,20 @@ function syncAuthVisibility() {
 }
 
 function loginUser(username, password) {
-  const entry = loadAuthUsers()[(username || '').toLowerCase()];
+  const normalizedUsername = (username || '').trim().toLowerCase();
+  const entry = loadAuthUsers()[normalizedUsername];
   const error = document.getElementById('loginError');
   if (!entry || entry.password !== password) {
     if (error) error.classList.remove('hidden');
+    logActivity('login_failed', normalizedUsername || 'missing username');
     return;
   }
-  localStorage.setItem('techserve_session', JSON.stringify({ user: username, role: entry.role }));
+  localStorage.setItem('techserve_session', JSON.stringify({
+    user: normalizedUsername,
+    role: entry.role,
+    createdAt: Date.now()
+  }));
+  logActivity('login_success');
   state.currentUserRole = entry.role;
   state.view = roles[entry.role].defaultView;
   if (error) error.classList.add('hidden');
@@ -284,8 +465,12 @@ function loginUser(username, password) {
 function registerUser(fullName, username, password, role) {
   const users = loadAuthUsers();
   const key = (username || '').trim().toLowerCase();
-  if (!key || users[key]) {
+  const validName = (fullName || '').trim().length >= 2;
+  const validUsername = /^[a-z0-9._-]{3,30}$/.test(key);
+  const validPassword = typeof password === 'string' && password.length >= 8;
+  if (!validName || !validUsername || !validPassword || !roles[role] || users[key]) {
     const error = document.getElementById('registerError');
+    if (error) error.textContent = 'Use a valid name, username, role, and password of at least 8 characters.';
     if (error) error.classList.remove('hidden');
     return;
   }
@@ -296,7 +481,12 @@ function registerUser(fullName, username, password, role) {
   const error = document.getElementById('registerError');
   if (error) error.classList.add('hidden');
 
-  localStorage.setItem('techserve_session', JSON.stringify({ user: username, role }));
+  localStorage.setItem('techserve_session', JSON.stringify({
+    user: key,
+    role,
+    createdAt: Date.now()
+  }));
+  logActivity('account_registered');
   state.currentUserRole = role;
   state.view = roles[role].defaultView;
   hideRegisterForm();
@@ -304,6 +494,7 @@ function registerUser(fullName, username, password, role) {
 }
 
 function logoutUser() {
+  logActivity('logout');
   localStorage.removeItem('techserve_session');
   syncAuthVisibility();
 }
@@ -319,14 +510,24 @@ document.getElementById('menuToggle').onclick = () => document.getElementById('s
 document.getElementById('modalClose').onclick = closeModal;
 document.getElementById('modalCancel').onclick = closeModal;
 document.getElementById('modalBackdrop').onclick = e => { if (e.target.id === 'modalBackdrop') closeModal(); };
+document.getElementById('customerModalClose').onclick = closeCustomerModal;
+document.getElementById('customerModalCancel').onclick = closeCustomerModal;
+document.getElementById('customerModalBackdrop').onclick = e => {
+  if (e.target.id === 'customerModalBackdrop') closeCustomerModal();
+};
+document.getElementById('assignmentModalClose').onclick = closeAssignmentModal;
+document.getElementById('assignmentModalCancel').onclick = closeAssignmentModal;
+document.getElementById('assignmentModalBackdrop').onclick = e => {
+  if (e.target.id === 'assignmentModalBackdrop') closeAssignmentModal();
+};
 
 document.getElementById('jobForm').onsubmit = e => {
   e.preventDefault();
   const form = e.target;
   const customer = document.getElementById('jobCustomer').value;
-  const device = form.querySelectorAll('select')[1].value;
+  const device = document.getElementById('jobDevice').value;
   const issue = form.querySelector('textarea').value;
-  const priority = form.querySelectorAll('select')[2].value;
+  const priority = document.getElementById('jobPriority').value;
   state.jobs.unshift({
     id: `JOB-${1050 + state.jobs.length}`,
     customer,
@@ -342,6 +543,45 @@ document.getElementById('jobForm').onsubmit = e => {
   });
   closeModal();
   state.view = 'repairs';
+  render();
+};
+
+document.getElementById('customerForm').onsubmit = async e => {
+  e.preventDefault();
+  const name = document.getElementById('customerName').value.trim();
+  const contact = document.getElementById('customerContact').value.trim();
+  const email = document.getElementById('customerEmail').value.trim();
+  const address = document.getElementById('customerAddress').value.trim();
+  if (name.length < 2 || contact.length < 7 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    document.getElementById('customerEmail').setCustomValidity('Enter a valid customer name, contact number, and email.');
+    document.getElementById('customerEmail').reportValidity();
+    return;
+  }
+  document.getElementById('customerEmail').setCustomValidity('');
+  const response = await fetch('/api/customers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, contact, email, address })
+  });
+  if (!response.ok) {
+    document.getElementById('customerEmail').setCustomValidity('The customer could not be saved.');
+    document.getElementById('customerEmail').reportValidity();
+    return;
+  }
+  logActivity('customer_created', name);
+  closeCustomerModal();
+  state.view = 'customers';
+  render();
+};
+
+document.getElementById('assignmentForm').onsubmit = e => {
+  e.preventDefault();
+  const job = state.jobs.find(item => item.id === state.assignmentJobId);
+  const technician = document.getElementById('assignmentTechnician').value;
+  if (!job || !technician) return;
+  job.tech = technician;
+  logActivity('technician_assigned', `${job.id}: ${job.tech}`);
+  closeAssignmentModal();
   render();
 };
 

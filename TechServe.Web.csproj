@@ -3,10 +3,15 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <EnableDefaultItems>false</EnableDefaultItems>
+    <EnableDefaultItems>true</EnableDefaultItems>
+    <RazorCompileOnBuild>true</RazorCompileOnBuild>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="TechServe.Web\Program.cs" />
-    <Content Include="TechServe.Web\wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Remove="**\*.cs" />
+    <Compile Include="TechServe.Web\**\*.cs" />
+    <EmbeddedResource Remove="**\*.resx" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1" />
   </ItemGroup>
 </Project>
