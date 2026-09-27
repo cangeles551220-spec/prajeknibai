@@ -296,6 +296,7 @@ END;", connection);
             using var connection = new SqlConnection(AppDatabase.DatabaseConnectionString);
             connection.Open();
 
+            SeedUserIfMissing(connection, "System Administrator", "admin", "Admin", "Admin123");
             SeedUserIfMissing(connection, "Super Admin", "superadmin", "Super Admin", "superadmin");
             SeedUserIfMissing(connection, "John", "john", "Admin", "john");
             SeedUserIfMissing(connection, "Jane", "jane", "Manager", "jane");

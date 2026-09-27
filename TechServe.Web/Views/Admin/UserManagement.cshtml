@@ -1,0 +1,8 @@
+@model TechServe.Web.Models.UserManagementViewModel
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "User Management";
+    ViewData["PageKey"] = "user-management";
+}
+
+<partial name="~/Views/UserManagement/_UserManagement.cshtml" model="Model" />

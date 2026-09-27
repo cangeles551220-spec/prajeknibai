@@ -1,0 +1,94 @@
+@{
+    var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "STAFF";
+    var roleKey = role.ToUpperInvariant();
+    var displayName = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+        ?? User.Identity?.Name
+        ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+        ?? "User";
+    var workspaceName = "TechServe HQ";
+    var roleColorClass = roleKey switch
+    {
+        "ADMIN" or "MANAGER" => "role-orange",
+        "TECHNICIAN" or "INVENTORY" => "role-blue",
+        "STAFF" or "BILLING" => "role-green",
+        _ => "role-neutral"
+    };
+    var roleDisplayName = roleKey switch
+    {
+        "ADMIN" => "Administrator",
+        "MANAGER" => "Manager",
+        "TECHNICIAN" => "Technician",
+        "STAFF" or "BILLING" => "Cashier / Staff",
+        "INVENTORY" => "Inventory Staff",
+        _ => roleKey
+    };
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+    var isDashboard = currentPath.Equals("/Admin/Dashboard", StringComparison.OrdinalIgnoreCase);
+    var isUserManagement = currentPath.Equals("/Admin/UserManagement", StringComparison.OrdinalIgnoreCase);
+    var pageKey = ViewData["PageKey"]?.ToString() ?? string.Empty;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - TechServe</title>
+    <link rel="icon" type="image/png" href="~/images/techserve-logo.png" />
+    <link rel="stylesheet" href="~/css/app.css?v=sidebar-links-1" />
+    <link rel="stylesheet" href="~/css/responsive.css?v=sidebar-scrollbar-restore-4" />
+    <link rel="stylesheet" href="~/css/dashboard-scroll.css?v=1" />
+    <link rel="stylesheet" href="~/css/repair-tracking.css?v=1" />
+    <link rel="stylesheet" href="~/css/user-management.css" />
+</head>
+<body>
+<div class="app-shell" id="appShell" data-page="@pageKey" data-role="@roleKey" data-name="@displayName" data-workspace="@workspaceName">
+    <aside class="sidebar" id="sidebar">
+        <div class="brand"><img class="brand-logo brand-logo-sidebar" src="~/images/techserve-logo.png" alt="TechServe logo" /></div>
+        <div class="workspace-switcher">
+            <span class="avatar avatar-blue">@roleKey.Substring(0, Math.Min(2, roleKey.Length))</span>
+            <div><b>@workspaceName</b><small id="workspaceRole" class="role-label @roleColorClass">@roleDisplayName</small></div>
+        </div>
+        <nav class="nav">
+            <p class="nav-label">Workspace</p>
+            @if (roleKey != "STAFF")
+            {
+                <a class="nav-item @(isDashboard ? "active" : string.Empty)" href="/Admin/Dashboard"><span class="nav-icon">⌂</span>Overview</a>
+            }
+            <button class="nav-item" data-view="repairs"><span class="nav-icon">▣</span>Repair jobs <b class="nav-count">8</b></button>
+            <button class="nav-item" data-view="tracking"><span class="nav-icon">◉</span>Repair tracking</button>
+            <button class="nav-item" data-view="customers"><span class="nav-icon">♙</span>Customers</button>
+            <button class="nav-item" data-view="devices"><span class="nav-icon">▤</span>Devices</button>
+            <button class="nav-item" data-view="technicians"><span class="nav-icon">♙</span>Technicians</button>
+            <p class="nav-label">Operations</p>
+            <button class="nav-item" data-view="inventory"><span class="nav-icon">▥</span>Parts inventory <b class="nav-alert">3</b></button>
+            <button class="nav-item" data-view="suppliers"><span class="nav-icon">▤</span>Suppliers</button>
+            <button class="nav-item" data-view="billing"><span class="nav-icon">₱</span>Billing</button>
+            <button class="nav-item" data-view="crm"><span class="nav-icon">♡</span>Customer CRM</button>
+            <button class="nav-item" data-view="reports"><span class="nav-icon">▥</span>Reports</button>
+            <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span>Settings</button>
+            @if (roleKey == "ADMIN")
+            {
+                <a class="nav-item @(isUserManagement ? "active" : string.Empty)" href="/Admin/UserManagement"><span class="nav-icon">♙</span>Manage users</a>
+            }
+        </nav>
+        <div class="sidebar-footer">
+            <div class="profile">
+                <span class="avatar avatar-orange" id="profileInitials">@displayName.Substring(0, Math.Min(2, displayName.Length)).ToUpperInvariant()</span>
+                <div><b id="profileName">@displayName</b><small id="profileRole" class="role-label @roleColorClass">@roleDisplayName</small></div>
+                <button type="button" class="more" aria-label="Open profile menu" aria-expanded="false">•••</button>
+                <div class="profile-menu" id="profileMenu" hidden><button type="button" class="profile-menu-item" data-menu-action="profile">Profile</button><button type="button" class="profile-menu-item" data-menu-action="settings">Settings</button></div>
+            </div>
+        </div>
+    </aside>
+    <main class="main">
+        <header class="topbar">
+            <button class="mobile-menu" id="menuToggle">☰</button>
+            <div class="topbar-copy"><div class="breadcrumbs"><span>Workspace</span><b>/</b><strong id="pageCrumb">@ViewData["Title"]</strong></div><span class="topbar-badge">Live Ops</span></div>
+            <div class="top-actions"><label class="global-search"><span>⌕</span><input id="globalSearch" placeholder="Search anything..." aria-label="Search"></label><button class="icon-button notification" aria-label="Notifications">♢<i></i></button><button class="help">? <span>Help center</span></button><a asp-controller="Auth" asp-action="Logout" id="logoutButton" class="button button-ghost">Logout</a></div>
+        </header>
+        @RenderBody()
+    </main>
+</div>
+<script src="~/js/app.js?v=devices-persistence-1"></script>
+</body>
+</html>

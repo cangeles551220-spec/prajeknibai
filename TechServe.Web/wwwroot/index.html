@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#152438">
   <title>TechServe | Repair operations workspace</title>
   <link rel="icon" type="image/png" href="images/techserve-logo.png">
-  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
@@ -33,38 +33,6 @@
           <button type="submit" class="button button-primary login-button">Login</button>
         </form>
 
-        <div id="loginMode" class="login-mode">
-          <span>Don’t have an account?</span>
-          <button type="button" id="showRegister" class="login-register">Register here</button>
-        </div>
-
-        <form id="registerForm" class="register-form hidden">
-          <h2>Create account</h2>
-          <label for="registerName">Full name</label>
-          <input id="registerName" type="text" placeholder="Your full name" required>
-
-          <label for="registerUser">Username</label>
-          <input id="registerUser" type="text" placeholder="Choose username" required>
-
-          <label for="registerPassword">Password</label>
-          <input id="registerPassword" type="password" placeholder="Create password" required>
-
-          <label for="registerRole">Role</label>
-          <select id="registerRole">
-            <option>ADMIN</option>
-            <option>MANAGER</option>
-            <option>TECHNICIAN</option>
-            <option>STAFF</option>
-            <option>INVENTORY</option>
-            <option>BILLING</option>
-          </select>
-
-          <div id="registerError" class="login-error hidden">Username is already taken.</div>
-          <div class="register-actions">
-            <button type="button" id="cancelRegister" class="button button-ghost">Cancel</button>
-            <button type="submit" class="button button-primary">Create account</button>
-          </div>
-        </form>
       </div>
     </div>
   </div>
@@ -80,13 +48,6 @@
           <b id="workspaceName">TechServe HQ</b>
           <small id="workspaceRole">ADMIN</small>
         </div>
-        <select id="roleSelector" aria-label="Select user role">
-          <option>ADMIN</option>
-          <option>MANAGER</option>
-          <option>TECHNICIAN</option>
-          <option>STAFF</option>
-          <option>INVENTORY</option>
-        </select>
       </div>
       <nav class="nav">
         <p class="nav-label">Workspace</p>
@@ -98,7 +59,7 @@
         <button class="nav-item" data-view="technicians"><span class="nav-icon">♙</span>Technicians</button>
         <p class="nav-label">Operations</p>
         <button class="nav-item" data-view="inventory"><span class="nav-icon">▥</span>Parts inventory <b class="nav-alert">3</b></button>
-        <button class="nav-item" data-view="billing"><span class="nav-icon">$</span>Billing</button>
+        <button class="nav-item" data-view="billing"><span class="nav-icon">₱</span>Billing</button>
         <button class="nav-item" data-view="crm"><span class="nav-icon">♡</span>Customer CRM</button>
         <button class="nav-item" data-view="reports"><span class="nav-icon">▥</span>Reports</button>
         <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span>Settings</button>
@@ -164,6 +125,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=crm-reference-1"></script>
+  <script src="js/app.js?v=crm-reference-4"></script>
 </body>
 </html>

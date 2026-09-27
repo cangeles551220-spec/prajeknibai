@@ -1,0 +1,43 @@
+@model List<TechServe.Web.Models.RepairViewModel>
+
+@{
+    ViewData["Title"] = "Repair tracking";
+}
+
+<div class="panel">
+    <div class="panel-header">
+        <div>
+            <h3>Repair Jobs</h3>
+            <p>Live repair progress for active customer devices.</p>
+        </div>
+        <button class="button button-primary">＋ New repair job</button>
+    </div>
+
+    <div class="table-toolbar">
+        <input type="search" class="table-search" placeholder="Search repair jobs..." aria-label="Search repair jobs" />
+    </div>
+
+    <div class="table-wrap">
+        <table class="data-table searchable-table">
+            <thead>
+                <tr>
+                    <th>Job ID</th>
+                    <th>Customer</th>
+                    <th>Device</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var ticket in Model)
+                {
+                    <tr>
+                        <td><b>@ticket.JobId</b></td>
+                        <td>@ticket.Customer</td>
+                        <td>@ticket.Device</td>
+                        <td>@ticket.Status</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

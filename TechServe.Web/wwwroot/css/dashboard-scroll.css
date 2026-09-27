@@ -1,0 +1,20 @@
+html,
+body {
+    overflow-y: auto !important;
+    scrollbar-width: auto !important;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    display: block !important;
+    width: 14px;
+}
+
+html body .app-shell .sidebar .nav {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+html body .app-shell .sidebar .nav::-webkit-scrollbar {
+    display: none;
+}

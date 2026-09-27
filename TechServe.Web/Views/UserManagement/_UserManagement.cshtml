@@ -1,0 +1,91 @@
+@model TechServe.Web.Models.UserManagementViewModel
+
+<section class="user-management-section" id="user-management">
+    <div class="page-heading user-management-heading">
+        <div>
+            <p class="eyebrow">Administration</p>
+            <h1>User Management</h1>
+            <p>Manage employees and control account access.</p>
+        </div>
+        <button type="button" class="button button-primary" id="openInviteUser">+ Invite employee</button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="login-error">@Model.ErrorMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.InvitationUrl))
+    {
+        <section class="panel invitation-result">
+            <div class="panel-header"><div><h3>Invitation created</h3><p>Share this one-time link with the employee.</p></div></div>
+            <input value="@Model.InvitationUrl" readonly aria-label="Invitation link" />
+        </section>
+    }
+
+    <div class="stat-grid user-management-stats">
+        <section class="stat-card user-stat-card"><div class="stat-top">Total users <span class="stat-icon i-blue">♙</span></div><h2>@Model.TotalUsers</h2><span class="trend">Active accounts</span></section>
+        <section class="stat-card user-stat-card"><div class="stat-top">Active users <span class="stat-icon i-green">✓</span></div><h2>@Model.ActiveUsers</h2><span class="trend">Currently enabled</span></section>
+        <section class="stat-card user-stat-card"><div class="stat-top">Administrators <span class="stat-icon i-orange">◆</span></div><h2>@Model.Administrators</h2><span class="trend">Admin accounts</span></section>
+    </div>
+
+    <section class="panel user-management-users">
+        <div class="panel-header user-table-header"><div><h3>Existing users</h3><p>Only active accounts can sign in.</p></div><span class="muted">@Model.TotalUsers accounts</span></div>
+        <div class="table-wrap">
+            <table class="data-table user-management-table">
+                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                @foreach (var user in Model.Users)
+                {
+                    <tr>
+                        <td><b>@user.FullName</b></td>
+                        <td><span class="user-email">@user.Email</span></td>
+                        <td><span class="user-role-badge user-role-@user.Role.ToLowerInvariant()">@user.Role</span></td>
+                        <td>
+                            @if (user.IsActive)
+                            {
+                                <span class="status status-green user-status"><i>●</i> @(user.InvitationPending ? "Invitation pending" : "Active")</span>
+                            }
+                            else
+                            {
+                                <span class="status status-gray user-status"><i>●</i> Disabled</span>
+                            }
+                        </td>
+                        <td>
+                            @if (user.IsActive && !string.Equals(user.Role, "ADMIN", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <form asp-controller="UserManagement" asp-action="Deactivate" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@user.Id" />
+                                    <input type="hidden" name="returnUrl" value="/Admin/UserManagement" />
+                                    <button type="submit" class="button button-ghost user-disable-button">Disable</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</section>
+
+<div class="modal-backdrop" id="inviteUserModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="inviteUserTitle">
+        <div class="modal-header">
+            <div><p class="eyebrow">User management</p><h2 id="inviteUserTitle">Invite employee</h2></div>
+            <button type="button" class="modal-close" id="closeInviteUser" aria-label="Close invitation dialog">×</button>
+        </div>
+        <form asp-controller="UserManagement" asp-action="Invite" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnUrl" value="/Admin/UserManagement" />
+            <label>Name<input name="Invite.FullName" required maxlength="120" autocomplete="name" /></label>
+            <label>Email<input name="Invite.Email" type="email" required maxlength="180" autocomplete="email" /></label>
+            <label>Role<select name="Invite.Role" required><option value="STAFF">Employee</option><option value="MANAGER">Manager</option><option value="TECHNICIAN">Technician</option><option value="INVENTORY">Inventory</option><option value="BILLING">Billing</option></select></label>
+            <div class="modal-actions"><button type="button" class="button button-ghost" id="cancelInviteUser">Cancel</button><button type="submit" class="button button-primary">Create invitation</button></div>
+        </form>
+    </section>
+</div>

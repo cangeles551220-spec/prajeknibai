@@ -1,170 +1,156 @@
-@model TechServe.Web.Models.DashboardViewModel
+@{
+    Layout = null;
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#152438">
-  <title>TechServe | Repair operations workspace</title>
-  <link rel="icon" type="image/png" href="~/images/techserve-logo.png">
-  <link rel="stylesheet" href="~/app.css">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TechServe | Repair operations</title>
+    <link rel="icon" type="image/png" href="~/images/techserve-logo.png" />
+    <link rel="stylesheet" href="~/css/app.css" />
+    <link rel="stylesheet" href="~/css/landing-responsive.css?v=2" />
 </head>
-<body>
-  <div id="loginScreen" class="login-screen">
-    <div class="login-card">
-      <div class="login-visual">
-        <img class="brand-logo brand-logo-login" src="images/techserve-logo.png" alt="TechServe logo" />
-      </div>
+<body class="landing-body">
+    <div class="landing-page">
+        <header class="landing-header">
+            <div class="landing-brand">
+                <span class="brand-mark-mini">⌁</span>
+                <span>TechServe</span>
+            </div>
+            <nav class="landing-nav">
+                <a href="#features">Features</a>
+                <a href="#workflow">Workflow</a>
+                <a href="#pricing">Pricing</a>
+            </nav>
+            <div class="landing-actions">
+                <a class="button button-ghost" asp-controller="Auth" asp-action="Login">Login</a>
+                <a class="button button-primary" asp-controller="Auth" asp-action="Login">Get started</a>
+            </div>
+        </header>
 
-      <div class="login-panel">
-        <div class="login-heading">
-          <div class="login-symbol">+</div>
-          <h1>Login to your Account</h1>
-          <p>See what is going on with your business</p>
-        </div>
+        <main>
+            <section class="landing-hero">
+                <div class="landing-copy">
+                    <span class="eyebrow">All-in-one repair operations</span>
+                    <h1>Run your repair shop with real-time visibility.</h1>
+                    <p>Track every repair job, manage technicians, monitor inventory, and keep customers informed from one streamlined dashboard.</p>
+                    <div class="landing-cta">
+                        <a class="button button-primary" asp-controller="Auth" asp-action="Login">Book a demo</a>
+                        <a class="button button-ghost" asp-controller="Auth" asp-action="Login">Sign in</a>
+                    </div>
+                    <ul class="landing-proof">
+                        <li>3 active jobs today</li>
+                        <li>99.9% service visibility</li>
+                        <li>24/7 operations tracking</li>
+                    </ul>
+                </div>
 
-        <form id="loginForm">
-          <label for="loginUser">Username</label>
-          <input id="loginUser" type="text" placeholder="Enter username" autocomplete="username" required>
+                <div class="landing-visual">
+                    <div class="dashboard-card large">
+                        <div class="card-head">
+                            <span class="dot red"></span>
+                            <span class="dot amber"></span>
+                            <span class="dot green"></span>
+                        </div>
+                        <div class="chart-box">
+                            <div class="bars">
+                                <span style="height: 28%"></span>
+                                <span style="height: 46%"></span>
+                                <span style="height: 62%"></span>
+                                <span style="height: 78%"></span>
+                                <span style="height: 55%"></span>
+                                <span style="height: 90%"></span>
+                            </div>
+                        </div>
+                        <div class="metrics-row">
+                            <div><small>Revenue</small><strong>₱96.8K</strong></div>
+                            <div><small>Repairs</small><strong>128</strong></div>
+                            <div><small>Uptime</small><strong>98.4%</strong></div>
+                        </div>
+                    </div>
+                    <div class="dashboard-card small">
+                        <p>Inventory alert</p>
+                        <strong>3 low-stock items</strong>
+                    </div>
+                </div>
+            </section>
 
-          <label for="loginPassword">Password</label>
-          <input id="loginPassword" type="password" placeholder="Enter password" autocomplete="current-password" required>
+            <section id="features" class="landing-section">
+                <div class="section-heading">
+                    <span class="eyebrow">Why TechServe</span>
+                    <h2>Built for modern repair businesses.</h2>
+                </div>
+                <div class="feature-grid">
+                    <article class="feature-card">
+                        <div class="icon">▣</div>
+                        <h3>Repair job tracking</h3>
+                        <p>Monitor status, priorities, technician assignments, and completion timelines from one dashboard.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="icon">◉</div>
+                        <h3>Live service visibility</h3>
+                        <p>See what’s active, delayed, or ready for pickup without digging through spreadsheets.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="icon">▥</div>
+                        <h3>Inventory control</h3>
+                        <p>Stay ahead of stockouts and supplier needs with automated stock tracking and alerts.</p>
+                    </article>
+                    <article class="feature-card">
+                        <div class="icon">₱</div>
+                        <h3>Billing & reporting</h3>
+                        <p>Keep payment records, customer billing, and operational insights organized in a single view.</p>
+                    </article>
+                </div>
+            </section>
 
-          <div id="loginError" class="login-error hidden">Invalid username or password.</div>
-          <button type="submit" class="button button-primary login-button">Login</button>
-        </form>
+            <section id="workflow" class="landing-section workflow-section">
+                <div class="section-heading">
+                    <span class="eyebrow">Workflow</span>
+                    <h2>From intake to completed repair.</h2>
+                </div>
 
-        <div id="loginMode" class="login-mode">
-          <span>Don’t have an account?</span>
-          <button type="button" id="showRegister" class="login-register">Register here</button>
-        </div>
+                <div class="workflow-steps">
+                    <div class="step">
+                        <span>01</span>
+                        <h3>Receive</h3>
+                        <p>Create a repair request and record device details.</p>
+                    </div>
+                    <div class="step">
+                        <span>02</span>
+                        <h3>Assign</h3>
+                        <p>Route the job to the right technician and set the priority.</p>
+                    </div>
+                    <div class="step">
+                        <span>03</span>
+                        <h3>Repair</h3>
+                        <p>Track updates, parts, and progress across every stage.</p>
+                    </div>
+                    <div class="step">
+                        <span>04</span>
+                        <h3>Deliver</h3>
+                        <p>Close the job, invoice the customer, and keep the record complete.</p>
+                    </div>
+                </div>
+            </section>
 
-        <form id="registerForm" class="register-form hidden">
-          <h2>Create account</h2>
-          <label for="registerName">Full name</label>
-          <input id="registerName" type="text" placeholder="Your full name" required>
+            <section id="pricing" class="landing-section pricing-section">
+                <div class="cta-panel">
+                    <div>
+                        <span class="eyebrow">Ready to operate smarter?</span>
+                        <h2>Launch your repair workflow in minutes.</h2>
+                    </div>
+                    <a class="button button-primary" asp-controller="Auth" asp-action="Login">Open dashboard</a>
+                </div>
+            </section>
+        </main>
 
-          <label for="registerUser">Username</label>
-          <input id="registerUser" type="text" placeholder="Choose username" required>
-
-          <label for="registerPassword">Password</label>
-          <input id="registerPassword" type="password" placeholder="Create password" required>
-
-          <label for="registerRole">Role</label>
-          <select id="registerRole">
-            <option>ADMIN</option>
-            <option>MANAGER</option>
-            <option>TECHNICIAN</option>
-            <option>STAFF</option>
-            <option>INVENTORY</option>
-            <option>BILLING</option>
-          </select>
-
-          <div id="registerError" class="login-error hidden">Username is already taken.</div>
-          <div class="register-actions">
-            <button type="button" id="cancelRegister" class="button button-ghost">Cancel</button>
-            <button type="submit" class="button button-primary">Create account</button>
-          </div>
-        </form>
-      </div>
+        <footer class="landing-footer">
+            <span>© 2026 TechServe</span>
+            <span>Repair operations platform</span>
+        </footer>
     </div>
-  </div>
-
-  <div id="appShell" class="app-shell hidden">
-    <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <img class="brand-logo brand-logo-sidebar" src="images/techserve-logo.png" alt="TechServe logo" />
-      </div>
-      <div class="workspace-switcher">
-        <span class="avatar avatar-blue" id="workspaceInitials">SA</span>
-        <div>
-          <b id="workspaceName">TechServe HQ</b>
-          <small id="workspaceRole">ADMIN</small>
-        </div>
-        <select id="roleSelector" aria-label="Select user role">
-          <option>ADMIN</option>
-          <option>MANAGER</option>
-          <option>TECHNICIAN</option>
-          <option>STAFF</option>
-          <option>INVENTORY</option>
-        </select>
-      </div>
-      <nav class="nav">
-        <p class="nav-label">Workspace</p>
-        <button class="nav-item active" data-view="overview"><span class="nav-icon">⌂</span>Overview</button>
-        <button class="nav-item" data-view="repairs"><span class="nav-icon">▣</span>Repair jobs <b class="nav-count">8</b></button>
-        <button class="nav-item" data-view="tracking"><span class="nav-icon">◉</span>Repair tracking</button>
-        <button class="nav-item" data-view="customers"><span class="nav-icon">♙</span>Customers</button>
-        <button class="nav-item" data-view="devices"><span class="nav-icon">▤</span>Devices</button>
-        <button class="nav-item" data-view="technicians"><span class="nav-icon">♙</span>Technicians</button>
-        <p class="nav-label">Operations</p>
-        <button class="nav-item" data-view="inventory"><span class="nav-icon">▥</span>Parts inventory <b class="nav-alert">3</b></button>
-        <button class="nav-item" data-view="billing"><span class="nav-icon">$</span>Billing</button>
-        <button class="nav-item" data-view="crm"><span class="nav-icon">♡</span>Customer CRM</button>
-        <button class="nav-item" data-view="reports"><span class="nav-icon">▥</span>Reports</button>
-        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span>Settings</button>
-      </nav>
-      <div class="sidebar-footer">
-        <div class="profile"><span class="avatar avatar-orange" id="profileInitials">AM</span><div><b id="profileName">Alex Morgan</b><small id="profileRole">Administrator</small></div><span class="more">•••</span></div>
-      </div>
-    </aside>
-
-    <main class="main">
-      <header class="topbar">
-        <button class="mobile-menu" id="menuToggle">☰</button>
-        <div class="breadcrumbs"><span>Workspace</span><b>/</b><strong id="pageCrumb">Overview</strong></div>
-        <div class="top-actions">
-          <label class="global-search"><span>⌕</span><input id="globalSearch" placeholder="Search anything..." aria-label="Search"></label>
-          <button class="icon-button notification" aria-label="Notifications">♢<i></i></button>
-          <button class="help">? <span>Help center</span></button>
-          <button id="logoutButton" class="button button-ghost">Logout</button>
-        </div>
-      </header>
-      <div class="content" id="content"></div>
-    </main>
-  </div>
-
-  <div class="modal-backdrop" id="modalBackdrop">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="modal-header"><div><p class="eyebrow">Quick action</p><h2 id="modalTitle">New repair job</h2></div><button class="modal-close" id="modalClose">×</button></div>
-      <form id="jobForm">
-        <div class="form-grid">
-          <label>Customer name<input id="jobCustomer" type="text" required placeholder="Enter customer name"></label>
-          <label>Device name<input id="jobDevice" type="text" required placeholder="Enter device name"></label>
-          <label class="wide">Problem / complaint<textarea required placeholder="Describe the customer's complaint..."></textarea></label>
-          <label>Priority<select id="jobPriority"><option>Normal</option><option>High</option><option>Urgent</option></select></label>
-          <label>Expected completion<input type="date" required></label>
-        </div>
-        <div class="modal-actions"><button type="button" class="button button-ghost" id="modalCancel">Cancel</button><button class="button button-primary">Create repair job</button></div>
-      </form>
-    </section>
-  </div>
-
-  <div class="modal-backdrop" id="customerModalBackdrop">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="customerModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">Customer management</p><h2 id="customerModalTitle">Add customer</h2></div><button class="modal-close" id="customerModalClose">×</button></div>
-      <form id="customerForm">
-        <div class="form-grid">
-          <label>Full name<input id="customerName" required placeholder="Customer full name"></label>
-          <label>Contact number<input id="customerContact" required placeholder="+1 (555) 000-0000"></label>
-          <label>Email<input id="customerEmail" type="email" required placeholder="customer@@email.com"></label>
-          <label class="wide">Address<textarea id="customerAddress" placeholder="Customer address"></textarea></label>
-        </div>
-        <div class="modal-actions"><button type="button" class="button button-ghost" id="customerModalCancel">Cancel</button><button class="button button-primary">Add customer</button></div>
-      </form>
-    </section>
-  </div>
-
-  <div class="modal-backdrop" id="assignmentModalBackdrop">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="assignmentModalTitle">
-      <div class="modal-header"><div><p class="eyebrow">Repair assignment</p><h2 id="assignmentModalTitle">Assign technician</h2></div><button class="modal-close" id="assignmentModalClose">×</button></div>
-      <form id="assignmentForm">
-        <label>Technician<select id="assignmentTechnician" required><option value="">Select a technician</option><option>Noah Williams</option><option>Sofia Patel</option><option>Liam Chen</option></select></label>
-        <div class="modal-actions"><button type="button" class="button button-ghost" id="assignmentModalCancel">Cancel</button><button class="button button-primary">Save assignment</button></div>
-      </form>
-    </section>
-  </div>
-
-  <script src="~/app.js?v=crm-reference-1"></script>
 </body>
 </html>
+

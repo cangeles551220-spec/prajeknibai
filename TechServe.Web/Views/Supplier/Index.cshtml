@@ -1,0 +1,793 @@
+@model List<TechServe.Web.Models.SupplierViewModel>
+
+@{
+    ViewData["Title"] = "Suppliers";
+    var suppliers = Model ?? new List<TechServe.Web.Models.SupplierViewModel>();
+    var visibleSuppliers = suppliers.Take(6).ToList();
+    var selectedSupplier = suppliers.FirstOrDefault();
+    var selectedSupplierName = selectedSupplier?.Name ?? string.Empty;
+    var activeSupplierCount = suppliers.Count(supplier => string.Equals(supplier.Status, "Active", StringComparison.OrdinalIgnoreCase));
+    var inactiveSupplierCount = suppliers.Count - activeSupplierCount;
+    var categoryCount = suppliers.Select(supplier => supplier.Category).Where(category => !string.IsNullOrWhiteSpace(category)).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+    var initials = selectedSupplierName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Select(x => x[0])
+        .Take(2)
+        .ToArray();
+    var supplierInitials = string.Concat(initials).ToUpperInvariant();
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TechServe | Suppliers</title>
+    <link rel="icon" type="image/png" href="~/images/techserve-logo.png" />
+    <link rel="stylesheet" href="~/css/app.css" />
+    <link rel="stylesheet" href="~/css/responsive.css" />
+    <style>
+            body {
+                margin: 0;
+                background: #f3f6fb;
+                color: #1b2a41;
+                font-family: Inter, "Segoe UI", sans-serif;
+            }
+
+            * { box-sizing: border-box; }
+
+            .supplier-screen {
+                min-height: 100vh;
+                background: linear-gradient(180deg, #eef4ff 0%, #f7f9fc 100%);
+                padding: 24px;
+            }
+
+            .supplier-layout {
+                max-width: 1440px;
+                margin: 0 auto;
+                display: grid;
+                grid-template-columns: minmax(0, 2.7fr) 360px;
+                gap: 22px;
+                padding: 18px;
+                border: 1px solid #dfe7f5;
+                border-radius: 22px;
+                background: rgba(255,255,255,0.2);
+                box-shadow: 0 18px 48px rgba(15, 23, 42, 0.06);
+            }
+
+            .supplier-main, .supplier-side { transition: all 0.2s ease; }
+
+            .supplier-main {
+                background: rgba(255,255,255,0.45);
+                border: 1px solid #dfe7f3;
+                border-radius: 18px;
+                overflow: hidden;
+            }
+
+            .supplier-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                padding: 18px 22px 16px;
+                border-bottom: 1px solid #e9eef7;
+            }
+
+            .supplier-header h1 {
+                margin: 0;
+                font-size: 28px;
+                letter-spacing: -0.04em;
+                color: #17273f;
+            }
+
+            .supplier-header p {
+                margin: 6px 0 0;
+                color: #6f8098;
+                font-size: 14px;
+            }
+
+            .btn-add, .btn-ghost, .btn-primary, .btn-secondary, .btn-link {
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                font-weight: 700;
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
+            }
+
+            .btn-add, .btn-primary {
+                background: linear-gradient(180deg, #2f6cf6, #1e5ae7);
+                color: white;
+                box-shadow: 0 10px 16px rgba(47, 108, 246, 0.18);
+            }
+
+            .btn-add {
+                height: 42px;
+                padding: 0 18px;
+            }
+
+            .btn-ghost, .btn-secondary {
+                background: #f4f7fd;
+                border: 1px solid #dfe8f4;
+                color: #2a3d5d;
+            }
+
+            .btn-ghost { height: 42px; padding: 0 16px; }
+
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 12px;
+                padding: 18px 18px 10px;
+            }
+
+            .stat-card {
+                background: rgba(255,255,255,0.7);
+                border: 1px solid #e4ebf5;
+                border-radius: 14px;
+                padding: 16px 16px 14px;
+                min-height: 112px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+
+            .stat-label {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                color: #60718b;
+                font-size: 13px;
+                margin-bottom: 10px;
+            }
+
+            .stat-value {
+                display: flex;
+                align-items: baseline;
+                gap: 8px;
+                color: #15243e;
+                font-size: 22px;
+                font-weight: 700;
+            }
+
+            .stat-value strong { font-size: 26px; letter-spacing: -0.04em; }
+
+            .trend { font-size: 12px; color: #1ca46c; }
+            .trend.down { color: #d95d61; }
+
+            .toolbar {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 18px 18px 16px;
+            }
+
+            .search-wrap { position: relative; flex: 1; }
+            .search-wrap input {
+                width: 100%;
+                height: 42px;
+                border-radius: 10px;
+                border: 1px solid #dfe7f4;
+                background: rgba(255,255,255,0.7);
+                padding: 0 14px 0 40px;
+                color: #22314a;
+                font-size: 14px;
+            }
+            .search-wrap::before {
+                content: "⌕";
+                position: absolute;
+                left: 14px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #7788a5;
+                font-size: 18px;
+            }
+
+            select, .filter-select {
+                height: 42px;
+                border-radius: 10px;
+                border: 1px solid #dfe7f4;
+                background: rgba(255,255,255,0.7);
+                color: #2f4062;
+                min-width: 160px;
+                padding: 0 12px;
+                font-size: 14px;
+            }
+
+            .supplier-table-wrap { padding: 0 18px 0; }
+            .supplier-table {
+                width: 100%;
+                border-collapse: collapse;
+                background: rgba(255,255,255,0.4);
+                border: 1px solid #e0eaf6;
+                border-radius: 12px;
+                overflow: hidden;
+            }
+            .supplier-table thead th {
+                text-align: left;
+                padding: 14px 16px;
+                font-size: 12px;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                background: #f4f7fd;
+                border-bottom: 1px solid #e8eef8;
+                color: #7587a4;
+            }
+            .supplier-table tbody td {
+                padding: 18px 16px;
+                border-bottom: 1px solid #edf2fa;
+                color: #3d4d67;
+                font-size: 14px;
+            }
+            .supplier-table tbody tr { cursor: pointer; transition: background 0.18s ease; }
+            .supplier-table tbody tr:hover { background: rgba(47, 108, 246, 0.04); }
+            .supplier-table tbody tr.is-selected {
+                background: rgba(47, 108, 246, 0.06);
+                box-shadow: inset 3px 0 0 #2f6cf6;
+            }
+            .supplier-name { display: flex; flex-direction: column; gap: 2px; }
+            .supplier-name strong { font-size: 15px; color: #182b46; }
+            .supplier-name span { color: #7587a4; font-size: 12px; }
+            .category-badge {
+                display: inline-flex;
+                align-items: center;
+                border-radius: 8px;
+                padding: 7px 10px;
+                background: #f5f8ff;
+                border: 1px solid #deebff;
+                color: #2d4469;
+                font-size: 12px;
+                font-weight: 600;
+            }
+            .rating { color: #f5a623; letter-spacing: 0.12em; }
+            .status-pill {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 7px 12px;
+                border-radius: 999px;
+                border: 1px solid transparent;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            .status-pill.active {
+                background: #eafaf4;
+                border-color: #bcead6;
+                color: #1fa36d;
+            }
+            .status-pill.inactive {
+                background: #f4f7fb;
+                border-color: #dfe8f4;
+                color: #6b7a90;
+            }
+
+            .supplier-side {
+                background: rgba(255,255,255,0.6);
+                border: 1px solid #dfe7f3;
+                border-radius: 18px;
+                padding: 20px 18px 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+            }
+            .vendor-top { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+            .vendor-avatar {
+                width: 88px;
+                height: 88px;
+                border-radius: 20px;
+                display: grid;
+                place-items: center;
+                background: linear-gradient(180deg, #79a7ff, #4c7ef7);
+                color: white;
+                font-weight: 700;
+                font-size: 32px;
+                box-shadow: 0 12px 24px rgba(76, 126, 247, 0.2);
+            }
+            .vendor-top h2 { margin: 0; font-size: 22px; color: #1b2a41; }
+            .vendor-top small { color: #6c7d96; font-size: 13px; }
+            .vendor-badge {
+                display: inline-flex;
+                align-items: center;
+                padding: 6px 12px;
+                border-radius: 999px;
+                background: #ebf8f3;
+                color: #1b9d68;
+                border: 1px solid #bcead8;
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            .side-section { padding-top: 14px; border-top: 1px solid #edf2fa; }
+            .side-section h3 {
+                margin: 0 0 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: #7a8aa4;
+                font-size: 12px;
+            }
+            .detail-list { display: grid; gap: 12px; }
+            .detail-item {
+                display: grid;
+                grid-template-columns: 120px 1fr;
+                gap: 8px;
+                font-size: 14px;
+                color: #41536d;
+            }
+            .detail-item .label { color: #61738d; font-weight: 600; }
+            .detail-item .value { font-weight: 600; color: #21324d; }
+
+            .orders-list { display: grid; gap: 14px; }
+            .order-item {
+                display: flex;
+                justify-content: space-between;
+                gap: 12px;
+                align-items: flex-start;
+                padding-top: 10px;
+                border-top: 1px solid #edf2fa;
+            }
+            .order-item:first-child { border-top: none; padding-top: 0; }
+            .order-item strong { display: block; margin-bottom: 4px; color: #21324d; font-size: 13px; letter-spacing: 0.03em; }
+            .order-item small { color: #7a8aa4; font-size: 12px; }
+            .order-item .amount { font-size: 13px; font-weight: 700; color: #1a2d47; }
+            .side-actions { display: flex; gap: 10px; margin-top: 4px; }
+            .side-actions button {
+                flex: 1;
+                height: 40px;
+                border-radius: 10px;
+                border: 1px solid #dfe7f5;
+                background: #f6f9ff;
+                color: #2a3d5d;
+                font-weight: 700;
+                cursor: pointer;
+            }
+            .side-actions .primary { background: linear-gradient(180deg, #2f6cf6, #1e5ae7); border-color: #2f6cf6; color: white; box-shadow: 0 10px 16px rgba(47,108,246,.18); }
+
+            .alert-box {
+                display: flex;
+                align-items: flex-start;
+                gap: 10px;
+                padding: 14px 12px;
+                border-radius: 12px;
+                border: 1px solid #dfe9ff;
+                background: #f4f8ff;
+                color: #425778;
+            }
+            .alert-box .dot {
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                background: #5d8af5;
+                color: white;
+                display: grid;
+                place-items: center;
+                font-size: 12px;
+                font-weight: 700;
+                flex-shrink: 0;
+            }
+            .alert-box strong { display: block; margin-bottom: 4px; color: #1b2a41; }
+            .footer-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 16px 18px 18px;
+                color: #677a94;
+                font-size: 13px;
+            }
+            .pager { display: flex; gap: 8px; }
+            .pager button {
+                min-width: 84px;
+                height: 34px;
+                border-radius: 8px;
+                border: 1px solid #dfe7f5;
+                background: rgba(255,255,255,0.5);
+                color: #425772;
+                cursor: pointer;
+            }
+
+            .modal-backdrop {
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.5);
+                display: none;
+                align-items: center;
+                justify-content: center;
+                padding: 24px;
+                z-index: 1000;
+            }
+            .modal-backdrop.visible { display: flex; }
+            .modal-panel {
+                width: min(640px, 100%);
+                max-height: calc(100vh - 48px);
+                background: white;
+                border-radius: 18px;
+                border: 1px solid #e3ebf8;
+                box-shadow: 0 28px 60px rgba(15,23,42,0.18);
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 18px 22px;
+                background: #f5f8ff;
+                border-bottom: 1px solid #e8eefb;
+            }
+            .modal-header h3 { margin: 0; color: #1a2d49; }
+            .modal-close {
+                width: 34px;
+                height: 34px;
+                border: none;
+                border-radius: 10px;
+                background: white;
+                color: #48607d;
+                font-size: 20px;
+                cursor: pointer;
+            }
+            .modal-body { padding: 20px 22px; overflow-y: auto; }
+            .form-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 14px;
+            }
+            .field { display: flex; flex-direction: column; gap: 6px; }
+            .field.full { grid-column: 1 / -1; }
+            .field label {
+                font-size: 12px;
+                color: #5e7291;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                font-weight: 700;
+            }
+            .field input, .field select, .field textarea {
+                width: 100%;
+                border-radius: 10px;
+                border: 1px solid #dfe7f4;
+                background: #fbfcff;
+                color: #243754;
+                padding: 12px 12px;
+                font-size: 14px;
+            }
+            .field textarea { min-height: 96px; resize: vertical; }
+            .modal-actions {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                padding: 0 22px 20px;
+            }
+            .btn-secondary, .btn-primary {
+                height: 42px;
+                padding: 0 18px;
+            }
+            .btn-link {
+                color: #3569eb;
+                background: transparent;
+                border: none;
+                padding: 0;
+                font-size: 13px;
+                font-weight: 700;
+                cursor: pointer;
+            }
+
+            @@media (max-width: 1100px) {
+                .supplier-layout { grid-template-columns: 1fr; }
+            }
+
+            @@media (max-width: 760px) {
+                .supplier-screen { padding: 14px; }
+                .supplier-layout { padding: 12px; }
+                .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                .supplier-header { flex-direction: column; align-items: flex-start; }
+                .toolbar { flex-wrap: wrap; }
+                .filter-select { flex: 1 1 140px; }
+                .supplier-table-wrap { overflow-x: auto; }
+                .supplier-table { min-width: 760px; }
+                .form-grid { grid-template-columns: 1fr; }
+                .modal-actions { justify-content: stretch; }
+                .modal-actions > * { flex: 1; }
+            }
+    </style>
+</head>
+<body class="supplier-screen">
+    <div class="supplier-layout">
+        <main class="supplier-main">
+            <header class="supplier-header">
+                <div>
+                    <h1>Suppliers</h1>
+                    <p>Manage hardware vendors, track parts lead times, and monitor rating scores.</p>
+                </div>
+                <button class="btn-add" type="button">+ Add Supplier</button>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label"><span>Total Suppliers</span><span>◌</span></div>
+                    <div class="stat-value"><strong>@suppliers.Count</strong></div>
+                    <div style="color:#687e96; font-size:12px; margin-top:4px;">Database records</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label"><span>Active Suppliers</span><span>◌</span></div>
+                    <div class="stat-value"><strong>@activeSupplierCount</strong></div>
+                    <div style="color:#687e96; font-size:12px; margin-top:4px;">Available for purchases</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label"><span>Inactive Suppliers</span><span>◌</span></div>
+                    <div class="stat-value"><strong>@inactiveSupplierCount</strong></div>
+                    <div style="color:#687e96; font-size:12px; margin-top:4px;">Retained for history</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label"><span>Categories</span><span>◌</span></div>
+                    <div class="stat-value"><strong>@categoryCount</strong></div>
+                    <div style="color:#687e96; font-size:12px; margin-top:4px;">Distinct supplier categories</div>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <div class="search-wrap">
+                    <input id="supplierSearch" type="search" placeholder="Search supplier, contact, or category..." aria-label="Search supplier" />
+                </div>
+                <select id="categoryFilter" class="filter-select" aria-label="Category filter">
+                    <option value="all">Category: All</option>
+                    <option value="Motherboards">Motherboards</option>
+                    <option value="Displays">Displays</option>
+                    <option value="Storage">Storage</option>
+                    <option value="Peripherals">Peripherals</option>
+                </select>
+                <select id="statusFilter" class="filter-select" aria-label="Status filter">
+                    <option value="all">Status: All</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+                <button id="exportSuppliersBtn" class="btn-ghost" type="button">Export CSV</button>
+            </div>
+
+            <div class="supplier-table-wrap">
+                <table class="supplier-table">
+                    <thead>
+                        <tr>
+                            <th>Supplier</th>
+                            <th>Primary Category</th>
+                            <th>Contact Email</th>
+                            <th>Phone</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="supplierTableBody">
+                        @if (visibleSuppliers.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="5" style="padding:30px; text-align:center; color:#6b7f96;">No suppliers available.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var supplier in visibleSuppliers)
+                            {
+                                var email = supplier.ContactEmail;
+                                var isActive = string.Equals(supplier.Status, "Active", StringComparison.OrdinalIgnoreCase);
+                                var selectedClass = supplier.SupplierId == selectedSupplier?.SupplierId ? "is-selected" : string.Empty;
+                                <tr class="@selectedClass"
+                                    data-supplier-row
+                                    data-id="@supplier.SupplierId"
+                                    data-name="@supplier.Name"
+                                    data-category="@supplier.Category"
+                                    data-email="@email"
+                                    data-contact="@supplier.ContactPerson"
+                                    data-address="@supplier.Address"
+                                    data-payment="@supplier.PaymentTerms"
+                                    data-lead="@supplier.LeadTime"
+                                    data-phone="@supplier.Phone"
+                                    data-status="@(!string.IsNullOrWhiteSpace(supplier.Status) ? supplier.Status : "Active")"
+                                    >
+                                    <td>
+                                        <div class="supplier-name">
+                                            <strong>@supplier.Name</strong>
+                                            <span>@supplier.Category</span>
+                                        </div>
+                                    </td>
+                                    <td><span class="category-badge">@supplier.Category</span></td>
+                                    <td class="email-cell">@(string.IsNullOrWhiteSpace(email) ? "—" : email)</td>
+                                    <td>@(string.IsNullOrWhiteSpace(supplier.Phone) ? "—" : supplier.Phone)</td>
+                                    <td>
+                                        <span class="status-pill @(isActive ? "active" : "inactive")">@(isActive ? "Active" : "Inactive")</span>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="footer-row">
+                <div id="supplierRangeLabel">@(visibleSuppliers.Count == 0 ? "Showing 0 suppliers" : $"Showing 1-{Math.Min(visibleSuppliers.Count, suppliers.Count)} of {suppliers.Count} suppliers")</div>
+                <div class="pager">
+                    <button id="prevPageBtn" type="button">Previous</button>
+                    <button id="nextPageBtn" type="button">Next</button>
+                </div>
+            </div>
+        </main>
+
+        <aside class="supplier-side" id="supplierDetailPanel">
+            <div class="vendor-top">
+                <div class="vendor-avatar" id="detailInitials">@(string.IsNullOrWhiteSpace(supplierInitials) ? "S" : supplierInitials)</div>
+                <h2 id="detailName">@(selectedSupplier?.Name ?? "No supplier selected")</h2>
+                <small>Supplier details</small>
+                <span class="vendor-badge" id="detailStatusBadge">@(selectedSupplier?.Status ?? "No suppliers")</span>
+            </div>
+
+            <div class="side-section">
+                <h3>Vendor Details</h3>
+                <div class="detail-list">
+                    <div class="detail-item">
+                        <div class="label">Contact</div>
+                        <div class="value" id="detailContact">@(selectedSupplier?.ContactPerson ?? "—")</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="label">Shipping Address</div>
+                        <div class="value" id="detailAddress">@(selectedSupplier?.Address ?? "—")</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="label">Payment Terms</div>
+                        <div class="value" id="detailPayment">@(selectedSupplier?.PaymentTerms ?? "—")</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="label">Avg. Lead Time</div>
+                        <div class="value" id="detailLead">@(selectedSupplier?.LeadTime ?? "—")</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="label">Office Phone</div>
+                        <div class="value" id="detailPhone">@(selectedSupplier?.Phone ?? "—")</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="side-section">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="margin:0;">Recent Orders</h3>
+                    <button id="viewAllOrdersBtn" class="btn-link" type="button">View All</button>
+                </div>
+                <div id="orderList" class="orders-list">
+                    <p>No purchase orders for this supplier.</p>
+                </div>
+            </div>
+
+            <div class="side-actions">
+                <button id="backToSupplierListBtn" type="button">Back</button>
+                <button id="editSupplierBtn" type="button">Edit Vendor</button>
+                <button id="newPurchaseBtn" type="button" class="primary">New Purchase</button>
+            </div>
+
+        </aside>
+    </div>
+
+    <div id="supplierModal" class="modal-backdrop" aria-hidden="true">
+        <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="supplierModalTitle">
+            <div class="modal-header">
+                <h3 id="supplierModalTitle">Add Supplier</h3>
+                <button type="button" class="modal-close" aria-label="Close supplier form">×</button>
+            </div>
+
+            <form id="supplierForm" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="supplierId" name="SupplierId" />
+                <div class="modal-body">
+                    <div class="form-grid">
+                        <div class="field full">
+                            <label for="supplierName">Supplier Name</label>
+                            <input id="supplierName" name="Name" type="text" required />
+                        </div>
+                        <div class="field">
+                            <label for="supplierCategory">Category</label>
+                            <select id="supplierCategory" name="Category">
+                                <option value="Motherboards">Motherboards</option>
+                                <option value="Displays">Displays</option>
+                                <option value="Storage">Storage</option>
+                                <option value="Peripherals">Peripherals</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="supplierStatus">Status</label>
+                            <select id="supplierStatus" name="Status">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="supplierContactPerson">Contact Person</label>
+                            <input id="supplierContactPerson" name="ContactPerson" type="text" />
+                        </div>
+                        <div class="field">
+                            <label for="supplierContactEmail">Contact Email</label>
+                            <input id="supplierContactEmail" name="ContactEmail" type="email" />
+                        </div>
+                        <div class="field">
+                            <label for="supplierPhone">Office Phone</label>
+                            <input id="supplierPhone" name="Phone" type="text" />
+                        </div>
+                        <div class="field">
+                            <label for="supplierPaymentTerms">Payment Terms</label>
+                            <input id="supplierPaymentTerms" name="PaymentTerms" type="text" value="Net 30" />
+                        </div>
+                        <div class="field">
+                            <label for="supplierLeadTime">Avg. Lead Time</label>
+                            <input id="supplierLeadTime" name="LeadTime" type="text" value="3-5 Days" />
+                        </div>
+                        <div class="field full">
+                            <label for="supplierAddress">Shipping Address</label>
+                            <textarea id="supplierAddress" name="Address"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary modal-close-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Supplier</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="purchaseModal" class="modal-backdrop" aria-hidden="true">
+        <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="purchaseModalTitle">
+            <div class="modal-header">
+                <h3 id="purchaseModalTitle">New Purchase</h3>
+                <button type="button" class="modal-close" aria-label="Close purchase form">×</button>
+            </div>
+            <form id="purchaseForm">
+                <div class="modal-body">
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="poNumber">PO Number</label>
+                            <input id="poNumber" type="text" value="PO-2025-001" required />
+                        </div>
+                        <div class="field">
+                            <label for="poDate">Purchase Date</label>
+                            <input id="poDate" type="date" required />
+                        </div>
+                        <div class="field">
+                            <label for="poItem">Item</label>
+                            <input id="poItem" type="text" placeholder="Motherboard, display, storage..." required />
+                        </div>
+                        <div class="field">
+                            <label for="poQty">Quantity</label>
+                            <input id="poQty" type="number" min="1" value="1" required />
+                        </div>
+                        <div class="field">
+                            <label for="poAmount">Amount</label>
+                            <input id="poAmount" type="number" min="0" step="0.01" value="0" required />
+                        </div>
+                        <div class="field">
+                            <label for="poStatus">Status</label>
+                            <select id="poStatus">
+                                <option>Pending</option>
+                                <option>Received</option>
+                                <option>In Transit</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary modal-close-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Create Purchase</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="ordersModal" class="modal-backdrop" aria-hidden="true">
+        <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="ordersModalTitle">
+            <div class="modal-header">
+                <h3 id="ordersModalTitle">Supplier Orders</h3>
+                <button type="button" class="modal-close" aria-label="Close supplier orders">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="allOrdersList" class="orders-list"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary modal-close-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/js/supplier.js"></script>
+</body>
+</html>
