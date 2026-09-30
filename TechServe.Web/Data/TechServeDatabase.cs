@@ -15,19 +15,7 @@ public sealed class TechServeDatabase
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
-        var builder = new SqlConnectionStringBuilder(connectionString);
-        var databaseName = builder.InitialCatalog;
-        builder.InitialCatalog = "master";
-
-        await using (var master = new SqlConnection(builder.ConnectionString))
-        {
-            await master.OpenAsync(cancellationToken);
-            await using var create = master.CreateCommand();
-            create.CommandText = $"IF DB_ID(@name) IS NULL CREATE DATABASE [{databaseName.Replace("]", "]]")}]";
-            create.Parameters.AddWithValue("@name", databaseName);
-            await create.ExecuteNonQueryAsync(cancellationToken);
-        }
-
+      
         if (!File.Exists(schemaPath))
         {
             throw new FileNotFoundException("TechServe.Database.sql was not found.", schemaPath);
@@ -75,8 +63,32 @@ public sealed class TechServeDatabase
 
     public async Task<CustomerRecord> AddCustomerAsync(CustomerInput input, CancellationToken cancellationToken)
     {
+        var trimmedName = input.Name.Trim();
+        var trimmedContact = input.Contact.Trim();
+        var trimmedEmail = input.Email.Trim();
+
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
+
+        await using (var check = connection.CreateCommand())
+        {
+            check.CommandText = """
+                SELECT TOP 1 CustomerId
+                FROM Customers
+                WHERE LOWER(TRIM(FullName)) = LOWER(@name)
+                   OR LOWER(TRIM(ContactNumber)) = LOWER(@contact)
+                   OR LOWER(TRIM(Email)) = LOWER(@email)
+                """;
+            check.Parameters.AddWithValue("@name", trimmedName);
+            check.Parameters.AddWithValue("@contact", trimmedContact);
+            check.Parameters.AddWithValue("@email", trimmedEmail);
+            var existingId = await check.ExecuteScalarAsync(cancellationToken);
+            if (existingId is not null)
+            {
+                throw new InvalidOperationException("A customer with the same contact number or email already exists.");
+            }
+        }
+
         await using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO Customers (FullName, ContactNumber, Email, Address)
@@ -84,15 +96,25 @@ public sealed class TechServeDatabase
                    INSERTED.Email, INSERTED.Address, INSERTED.CustomerStatus
             VALUES (@name, @contact, @email, @address);
             """;
-        command.Parameters.AddWithValue("@name", input.Name);
-        command.Parameters.AddWithValue("@contact", input.Contact);
-        command.Parameters.AddWithValue("@email", input.Email);
+        command.Parameters.AddWithValue("@name", trimmedName);
+        command.Parameters.AddWithValue("@contact", trimmedContact);
+        command.Parameters.AddWithValue("@email", trimmedEmail);
         command.Parameters.AddWithValue("@address", (object?)input.Address ?? DBNull.Value);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         await reader.ReadAsync(cancellationToken);
         return new CustomerRecord(reader.GetInt32(0), reader.GetString(1),
             reader.IsDBNull(2) ? "" : reader.GetString(2), reader.IsDBNull(3) ? "" : reader.GetString(3),
             reader.IsDBNull(4) ? "" : reader.GetString(4), reader.GetString(5), 0);
+    }
+
+    public async Task<bool> ArchiveCustomerAsync(int customerId, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Customers SET CustomerStatus = 'Archived' WHERE CustomerId = @customerId AND CustomerStatus <> 'Archived';";
+        command.Parameters.AddWithValue("@customerId", customerId);
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
     public async Task<UserRecord?> FindUserAsync(string username, CancellationToken cancellationToken)
@@ -156,6 +178,28 @@ public sealed class TechServeDatabase
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
+    public async Task<bool> DeleteUserAsync(int userId, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using (var clearReferences = connection.CreateCommand())
+        {
+            clearReferences.Transaction = (SqlTransaction)transaction;
+            clearReferences.CommandText = "UPDATE CustomerNotes SET CreatedBy = NULL WHERE CreatedBy = @userId; UPDATE RepairStatusHistories SET ChangedBy = NULL WHERE ChangedBy = @userId;";
+            clearReferences.Parameters.AddWithValue("@userId", userId);
+            await clearReferences.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await using var delete = connection.CreateCommand();
+        delete.Transaction = (SqlTransaction)transaction;
+        delete.CommandText = "DELETE FROM Users WHERE UserId = @userId AND Role <> 'ADMIN';";
+        delete.Parameters.AddWithValue("@userId", userId);
+        var deleted = await delete.ExecuteNonQueryAsync(cancellationToken) == 1;
+        await transaction.CommitAsync(cancellationToken);
+        return deleted;
+    }
+
     public async Task<bool> CompleteInvitationAsync(string tokenHash, string passwordHash, CancellationToken cancellationToken)
     {
         await using var connection = new SqlConnection(connectionString);
@@ -178,6 +222,17 @@ public sealed class TechServeDatabase
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<bool> UpdateUserFullNameAsync(string username, string fullName, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Users SET FullName = @fullName WHERE Username = @identifier OR Email = @identifier;";
+        command.Parameters.AddWithValue("@fullName", fullName.Trim());
+        command.Parameters.AddWithValue("@identifier", username.Trim().ToLowerInvariant());
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
     public async Task UpsertSeedUsersAsync(IReadOnlyList<SeedUserRecord> users, CancellationToken cancellationToken)
     {
         await using var connection = new SqlConnection(connectionString);
@@ -186,9 +241,7 @@ public sealed class TechServeDatabase
         {
             await using var command = connection.CreateCommand();
             command.CommandText = """
-                IF EXISTS (SELECT 1 FROM Users WHERE Email = @email OR Username = @username)
-                    UPDATE Users SET FullName = @fullName, Username = @username, PasswordHash = @passwordHash, Role = @role WHERE Email = @email OR Username = @username;
-                ELSE
+                IF NOT EXISTS (SELECT 1 FROM Users WHERE Email = @email OR Username = @username)
                     INSERT INTO Users (FullName, Username, Email, PasswordHash, Role) VALUES (@fullName, @username, @email, @passwordHash, @role);
                 """;
             command.Parameters.AddWithValue("@fullName", user.FullName);

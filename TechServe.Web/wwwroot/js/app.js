@@ -92,9 +92,12 @@ const state = {
 const content = document.getElementById('content');
 const serverUser = document.getElementById('appShell')?.dataset;
 if (serverUser?.role && roles[serverUser.role]) {
+  const pictureKey = `techserve_profile_picture_${serverUser.username || serverUser.role}`;
   window.__TECHSERVE_USER__ = {
     role: serverUser.role,
     name: serverUser.name || 'User',
+    username: serverUser.username || serverUser.role,
+    picture: localStorage.getItem(pictureKey) || '',
     workspace: serverUser.workspace || 'TechServe HQ'
   };
 }
@@ -124,11 +127,28 @@ const userProfile = () => ({
   name: window.__TECHSERVE_USER__?.name || 'User',
   role: roleLabel(state.currentUserRole)
 });
+const applyAppearance = () => {
+  const appearance = localStorage.getItem('techserve_appearance') || 'light';
+  document.body.dataset.appearance = appearance;
+  const appShell = document.getElementById('appShell');
+  if (appShell) appShell.dataset.appearance = appearance;
+};
+applyAppearance();
+const timeGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+};
 const roleLabel = role => ({ ADMIN: 'Administrator', MANAGER: 'Manager', TECHNICIAN: 'Technician', STAFF: 'Cashier / Staff', INVENTORY: 'Inventory Staff', BILLING: 'Cashier / Staff' }[String(role || '').toUpperCase()] || 'User');
 const roleColorClass = role => ({ ADMIN: 'role-orange', MANAGER: 'role-orange', TECHNICIAN: 'role-blue', STAFF: 'role-green', INVENTORY: 'role-blue', BILLING: 'role-green' }[String(role || '').toUpperCase()] || 'role-neutral');
 function initialViewFor(role) {
   const requestedView = new URLSearchParams(window.location.search).get('view');
-  return roles[role]?.nav.includes(requestedView) ? requestedView : roles[role]?.defaultView || 'overview';
+  const specialViews = new Set(['profile']);
+  if (requestedView && (specialViews.has(requestedView) || roles[role]?.nav.includes(requestedView))) {
+    return requestedView;
+  }
+  return roles[role]?.defaultView || 'overview';
 }
 
 function layout(title, subtitle, action = '') {
@@ -146,7 +166,12 @@ function applyRoleProfile() {
   const wsRole = document.getElementById('workspaceRole');
   if (wsRole) { wsRole.textContent = roleLabel(state.currentUserRole); wsRole.className = `role-label ${colorClass}`; }
   const profInitials = document.getElementById('profileInitials');
-  if (profInitials) profInitials.textContent = (window.__TECHSERVE_USER__?.name || profile.name).split(' ').map(x => x[0]).join('').slice(0,2).toUpperCase();
+  if (profInitials) {
+    const picture = window.__TECHSERVE_USER__?.picture || '';
+    profInitials.innerHTML = picture
+      ? `<img src="${escapeHtml(picture)}" alt="Profile picture" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`
+      : (window.__TECHSERVE_USER__?.name || profile.name).split(' ').map(x => x[0]).join('').slice(0,2).toUpperCase();
+  }
   const profName = document.getElementById('profileName');
   if (profName) profName.textContent = window.__TECHSERVE_USER__?.name || profile.name;
   const profRole = document.getElementById('profileRole');
@@ -175,10 +200,7 @@ function renderOverview() {
   const completedRepairs = state.jobs.filter(job => job.status === 'Completed').length;
   const totalRevenue = state.invoices.reduce((total, invoice) => total + parseMoney(invoice.amount), 0);
   const totalCustomers = state.customers.length || 0;
-  const action = ['ADMIN','MANAGER','STAFF'].includes(state.currentUserRole)
-    ? '<button class="button button-primary" id="newJob">＋ New repair job</button>'
-    : '';
-  return layout('Good morning, ' + userProfile().name.split(' ')[0] + ' 👋','Here’s what’s happening at your repair shop today.', action) +
+  return layout(timeGreeting() + ', ' + userProfile().name.split(' ')[0] + ' 👋','Here’s what’s happening at your repair shop today.') +
     `<div class="stat-grid">
       <div class="stat-card"><div class="stat-top">Total customers <span class="stat-icon i-blue">♙</span></div><h2>${totalCustomers}</h2><span class="trend">Live records</span></div>
       <div class="stat-card"><div class="stat-top">Active repair jobs <span class="stat-icon i-orange">▣</span></div><h2>${activeJobs}</h2><span class="trend">Live status</span></div>
@@ -233,8 +255,13 @@ function renderTracking() {
 }
 
 function renderCustomers() {
+  const customerFilter = state.customerStatusFilter || 'Active';
+  const visibleCustomers = state.customers.filter(customer => customerFilter === 'All customers'
+    || customerFilter === customer.status
+    || (customerFilter === 'Returning customers' && customer.status === 'Returning'));
+  const customerRows = visibleCustomers.map(c => `<tr><td>${person(c.name)}</td><td>${c.id}</td><td>${c.contact}</td><td>${c.email}</td><td><b>${c.jobs}</b></td><td>${status(c.status)}</td><td><button type="button" class="panel-link customer-view-profile" data-customer-id="${c.customerId}">View profile</button>${c.status !== 'Archived' ? ` <button type="button" class="panel-link archive-customer" data-customer-id="${c.customerId}" title="Archive customer">Archive</button>` : ''}</td></tr>`).join('');
   return layout('Customers','Keep customer profiles, contact details and repair history in one place.','<button class="button button-primary" id="newCustomer">＋ Add customer</button>')+
-    `<section class="panel"><div class="toolbar"><input class="table-search" id="tableSearch" placeholder="⌕  Search customers..."><select class="select"><option>All customers</option><option>Returning customers</option><option>Active</option></select><span class="spacer"></span><button class="button button-ghost">⇩ Export</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Customer</th><th>Customer ID</th><th>Contact</th><th>Email</th><th>Repair jobs</th><th>Status</th><th></th></tr></thead><tbody>${state.customers.map(c=>`<tr><td>${person(c.name)}</td><td>${c.id}</td><td>${c.contact}</td><td>${c.email}</td><td><b>${c.jobs}</b></td><td>${status(c.status)}</td><td><button class="panel-link">View profile</button></td></tr>`).join('')}</tbody></table></div></section>`;
+    `<section class="panel"><div class="toolbar"><input class="table-search" id="tableSearch" placeholder="⌕  Search customers..."><select class="select" id="customerStatusFilter"><option ${customerFilter === 'Active' ? 'selected' : ''}>Active</option><option ${customerFilter === 'All customers' ? 'selected' : ''}>All customers</option><option ${customerFilter === 'Returning customers' ? 'selected' : ''}>Returning customers</option><option ${customerFilter === 'Archived' ? 'selected' : ''}>Archived</option></select><span class="spacer"></span><button class="button button-ghost">⇩ Export</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Customer</th><th>Customer ID</th><th>Contact</th><th>Email</th><th>Repair jobs</th><th>Status</th><th>Actions</th></tr></thead><tbody>${customerRows || '<tr><td colspan="7">No customers match this filter.</td></tr>'}</tbody></table></div></section>`;
 }
 
 function renderDevices() {
@@ -416,12 +443,37 @@ function completePayment(invoice) {
 }
 
 function renderCrm() {
-  const customers = [
+  const liveCustomers = (state.customers || []).map((customer, index) => {
+    const nameParts = String(customer.name || 'Customer').split(' ');
+    const initialsText = nameParts.slice(0, 2).map(part => part[0] || '').join('').toUpperCase() || 'CU';
+    const customerId = customer.customerId || customer.id || `CUS-${String(index + 1).padStart(4, '0')}`;
+    return {
+      name: customer.name || 'Customer',
+      id: customer.id || customerId,
+      initials: initialsText,
+      phone: customer.contact || '—',
+      email: customer.email || '—',
+      address: customer.address || '—',
+      device: 'Latest device',
+      job: customer.jobs ? `Repair jobs: ${customer.jobs}` : 'No jobs',
+      status: customer.status || 'Active',
+      cost: customer.jobs ? 'Live data' : '—',
+      invoice: '—',
+      date: '—',
+      paid: customer.status || 'Active',
+      repairs: Number(customer.jobs) || 0,
+      spent: customer.jobs ? 'Live data' : '—',
+      joined: 'Live DB',
+      notes: 0
+    };
+  });
+  const fallbackCustomers = [
     { name: 'Maria Santos', id: 'C-001', initials: 'MS', phone: '0917-234-5678', email: 'maria.santos@gmail.com', address: '42 Rizal St, Makati', device: 'Lenovo ThinkPad E15', job: 'RJ-2024-001', status: 'In Repair', cost: '₱3,500', invoice: 'INV-2024-003', date: '2024-11-22', paid: 'Partially Paid', repairs: 7, spent: '₱3,500', joined: 'Nov 18', notes: 3 },
     { name: 'Jose Reyes', id: 'C-002', initials: 'JR', phone: '0918-456-7890', email: 'jose.reyes@gmail.com', address: '18 Mabini St, Quezon City', device: 'HP Pavilion TP01', job: 'RJ-2024-002', status: 'Ready for Pickup', cost: '₱1,800', invoice: 'INV-2024-004', date: '2024-11-21', paid: 'Paid', repairs: 4, spent: '₱8,200', joined: 'Nov 17', notes: 2 },
     { name: 'Ana Villanueva', id: 'C-003', initials: 'AV', phone: '0919-222-3456', email: 'ana.villanueva@gmail.com', address: '9 Jupiter St, Makati', device: 'MacBook Air M2', job: 'RJ-2024-003', status: 'Waiting for Parts', cost: '₱6,500', invoice: 'INV-2024-005', date: '2024-11-20', paid: 'Partially Paid', repairs: 3, spent: '₱12,500', joined: 'Nov 15', notes: 4 },
     { name: 'Marco Dela Rosa', id: 'C-004', initials: 'MD', phone: '0920-333-4567', email: 'marco.delarosa@gmail.com', address: '7 P. Gomez St, Manila', device: 'Dell XPS 15', job: 'RJ-2024-006', status: 'Completed', cost: '₱8,500', invoice: 'INV-2024-006', date: '2024-11-19', paid: 'Paid', repairs: 6, spent: '₱24,000', joined: 'Nov 16', notes: 5 }
   ];
+  const customers = liveCustomers.length ? liveCustomers : fallbackCustomers;
   const customer = customers[state.crmCustomerIndex] || customers[0];
   return `<div class="crm-heading"><div><h1>Customer CRM</h1><p>Customer relationships and service history</p></div><div class="crm-customer-tabs">${customers.map((item, index) => `<button class="${index === state.crmCustomerIndex ? 'active' : ''}" data-crm-customer="${index}">${item.name.split(' ')[0]}</button>`).join('')}</div></div>
     <div class="crm-layout"><aside class="crm-profile-card"><div class="crm-avatar">${customer.initials}</div><h2>${customer.name}</h2><p class="crm-id">${customer.id}</p><span class="crm-active">● Active Customer</span><div class="crm-contact"><p>♧ ${customer.phone}</p><p>✉ ${customer.email}</p><p>⌖ ${customer.address}</p></div><div class="crm-profile-actions"><button class="button button-ghost">Edit</button></div><div class="crm-stats"><div><b>${customer.repairs}</b><small>Total Repairs</small></div><div><b>${customer.spent}</b><small>Total Spent</small></div><div><b>${customer.joined}</b><small>Last Visit</small></div><div><b>${customer.notes}</b><small>Notes</small></div></div></aside>
@@ -459,29 +511,54 @@ function renderProfile() {
   const role = state.currentUserRole || 'ADMIN';
   const colorClass = roleColorClass(role);
   const email = `${userName.toLowerCase().replace(/\s+/g, '.')}@techserve.example`;
-  return layout('Profile','Manage your administrator account and workspace access.','<button class="button button-primary">Change password</button>')+
-    `<section class="panel"><div class="panel-header"><div><h3>Administrator profile</h3><p>Primary account information for your TechServe workspace.</p></div></div><div class="profile-layout" style="display:grid;grid-template-columns:240px 1fr;gap:22px;align-items:start;padding:12px 0 4px;">
+  const picture = window.__TECHSERVE_USER__?.picture || '';
+  return layout('Profile','Manage your administrator account and workspace access.','<button class="button button-primary" data-change-password>Change password</button>')+
+    `<section class="panel"><div class="panel-header"><div><h3>Administrator profile</h3><p>Primary account information for your TechServe workspace.</p></div><button type="button" class="button button-primary" data-save-profile>Save changes</button></div><div class="profile-layout" style="display:grid;grid-template-columns:240px 1fr;gap:22px;align-items:start;padding:12px 0 4px;">
       <div style="background:#f5f8ff;border:1px solid #e4edf8;border-radius:18px;padding:24px 18px;text-align:center;">
-        <div style="width:96px;height:96px;border-radius:50%;margin:0 auto 14px;background:linear-gradient(135deg,#3f67eb,#7d5ae9);display:grid;place-items:center;color:#fff;font-size:28px;font-weight:800;box-shadow:0 18px 30px rgba(63,103,235,.22);">${initials(userName).toUpperCase()}</div>
+        <div id="profileAvatar" style="width:96px;height:96px;border-radius:50%;margin:0 auto 14px;background:linear-gradient(135deg,#3f67eb,#7d5ae9);display:grid;place-items:center;overflow:hidden;color:#fff;font-size:28px;font-weight:800;box-shadow:0 18px 30px rgba(63,103,235,.22);">${picture ? `<img src="${escapeHtml(picture)}" alt="Profile picture" style="width:100%;height:100%;object-fit:cover;">` : initials(userName).toUpperCase()}</div>
         <h3 style="margin:0 0 6px;font-size:18px;">${userName}</h3>
         <p class="role-label ${colorClass}">${roleLabel(role)}</p>
       </div>
       <div class="form-grid" style="max-width:700px;">
-        <label>Admin name<input value="${userName}" readonly></label>
-        <label>Email<input value="${email}" readonly></label>
-        <label>Role<select readonly><option selected>${roleLabel(role)}</option></select></label>
-        <label>Profile picture<input value="Default administrator avatar" readonly></label>
+        <label>Admin name<input id="profileNameInput" value="${escapeHtml(userName)}" maxlength="120" required></label>
+        <label>Email<input value="${escapeHtml(email)}"></label>
+        <label>Role<select>
+          <option selected>${roleLabel(role)}</option>
+          <option>Administrator</option>
+          <option>Manager</option>
+          <option>Technician</option>
+          <option>Staff</option>
+        </select></label>
+        <label>Profile picture<input id="profilePictureInput" type="file" accept="image/png,image/jpeg,image/webp"></label>
         <div style="display:flex;align-items:center;gap:10px;grid-column:1/-1; margin-top:8px;">
-          <button type="button" class="button button-primary">Change password</button>
+          <button type="button" class="button button-primary" data-change-password>Change password</button>
           <button type="button" class="button button-ghost" data-menu-action="settings">Open settings</button>
         </div>
       </div>
     </div></section>`;
 }
 
+function openPasswordChangeModal() {
+  const form = document.getElementById('passwordChangeForm');
+  if (!form) return;
+  form.reset();
+  const message = document.getElementById('passwordChangeMessage');
+  if (message) {
+    message.textContent = '';
+    message.className = 'form-message';
+  }
+  document.getElementById('passwordChangeModalBackdrop')?.classList.add('open');
+}
+
+function closePasswordChangeModal() {
+  document.getElementById('passwordChangeModalBackdrop')?.classList.remove('open');
+  const form = document.getElementById('passwordChangeForm');
+  if (form) form.reset();
+}
+
 function renderSettings() {
   return layout('Settings','Manage your workspace preferences and staff access.','<button class="button button-primary">Save changes</button>')+
-    `<section class="panel"><div class="panel-header"><div><h3>Workspace settings</h3><p>These settings apply to your TechServe workspace.</p></div></div><div class="form-grid" style="max-width:700px"><label>Business name<input value="TechServe HQ"></label><label>Business email<input value="hello@techserve.example"></label><label>Timezone<select><option>Pacific Time (UTC-08:00)</option></select></label><label>Currency<select><option>PHP — Philippine Peso</option></select></label><label>Team members<input value="12 active members"></label><label>Other system settings<input value="2FA enabled, backups daily, audit logs on"></label></div></section><section class="panel recent"><div class="panel-header"><div><h3>Team members</h3><p>Role-based access for your repair shop</p></div><button class="button button-light">＋ Invite member</button></div><table class="data-table"><thead><tr><th>Member</th><th>Role</th><th>Last active</th><th>Status</th></tr></thead><tbody><tr><td>${person('Alex Morgan','AM')}</td><td><span class="role-label role-orange">${roleLabel('ADMIN')}</span></td><td>Just now</td><td>${status('Completed')}</td></tr><tr><td>${person('Sheilo','SH')}</td><td><span class="role-label role-green">${roleLabel('STAFF')}</span></td><td>Today, 9:18 AM</td><td>${status('Completed')}</td></tr><tr><td>${person('Noah Williams','NW')}</td><td><span class="role-label role-blue">${roleLabel('TECHNICIAN')}</span></td><td>Today, 8:54 AM</td><td>${status('Completed')}</td></tr></tbody></table></section>`;
+    `<section class="panel"><div class="panel-header"><div><h3>Workspace settings</h3><p>These settings apply to your TechServe workspace.</p></div></div><div class="form-grid" style="max-width:700px"><label>Business name<input value="TechServe HQ"></label><label>Business email<input value="hello@techserve.example"></label><label>Timezone<select><option>Pacific Time (UTC-08:00)</option></select></label><label>Currency<select><option>PHP — Philippine Peso</option></select></label><label>Team members<input value="4 active members"></label><label>Appearance<select id="appearanceSelect"><option value="light">Light</option><option value="dark" ${localStorage.getItem('techserve_appearance') === 'dark' ? 'selected' : ''}>Dark</option></select></label><label>Other system settings<input value="2FA enabled, backups daily, audit logs on"></label></div></section><section class="panel recent"><div class="panel-header"><div><h3>Team members</h3><p>Role-based access for your repair shop</p></div><button class="button button-light">＋ Invite member</button></div><table class="data-table"><thead><tr><th>Member</th><th>Role</th><th>Last active</th><th>Status</th></tr></thead><tbody><tr><td>${person('Krestal','KR')}</td><td><span class="role-label role-orange">${roleLabel('MANAGER')}</span></td><td>Just now</td><td>${status('Completed')}</td></tr><tr><td>${person('Shielo','SH')}</td><td><span class="role-label role-green">${roleLabel('STAFF')}</span></td><td>Today, 9:18 AM</td><td>${status('Completed')}</td></tr><tr><td>${person('Czymon','CZ')}</td><td><span class="role-label role-blue">${roleLabel('TECHNICIAN')}</span></td><td>Today, 8:54 AM</td><td>${status('Completed')}</td></tr><tr><td>${person('Kim Mingyu','KM')}</td><td><span class="role-label role-blue">${roleLabel('TECHNICIAN')}</span></td><td>Today, 8:30 AM</td><td>${status('Completed')}</td></tr></tbody></table></section>`;
 }
 
 function setupProfileMenu() {
@@ -514,12 +591,10 @@ function setupProfileMenu() {
       menu.hidden = true;
       trigger.setAttribute('aria-expanded', 'false');
       if (action === 'profile') {
-        state.view = 'profile';
-        render();
+        window.location.href = '/Admin/Dashboard?view=profile';
       }
       if (action === 'settings') {
-        state.view = 'settings';
-        render();
+        window.location.href = '/Admin/Dashboard?view=settings';
       }
     });
   });
@@ -562,7 +637,7 @@ function render() {
   if (state.view === 'devices' && !state.devicesLoaded) loadLiveDevices();
   if (state.view === 'inventory' && !state.partsLoaded) loadLiveInventory();
   if (state.view === 'suppliers' && !state.suppliersLoaded) loadLiveSuppliers();
-  if ((state.view === 'overview' || state.view === 'customers') && !state.customersLoaded) loadLiveCustomers();
+  if ((state.view === 'overview' || state.view === 'customers' || state.view === 'crm') && !state.customersLoaded) loadLiveCustomers();
   if (state.view === 'billing' && !state.billingLoaded) loadLiveBilling();
   if (state.view === 'reports' && !state.reportsLoaded) loadLiveReports();
   startLiveDashboardRefresh();
@@ -593,7 +668,7 @@ function startLiveDashboardRefresh() {
       state.suppliersLoaded = false;
       loadLiveSuppliers();
     }
-    if (['overview', 'customers'].includes(state.view)) {
+    if (['overview', 'customers', 'crm'].includes(state.view)) {
       state.customersLoaded = false;
       loadLiveCustomers();
     }
@@ -982,18 +1057,31 @@ async function loadLiveReports() {
   }
 }
 
+function setEstimatedCostDefault() {
+  const estimatedCostInput = document.getElementById('jobEstimatedCost');
+  if (estimatedCostInput) {
+    estimatedCostInput.value = '0.00';
+  }
+}
+
 async function openModal(){
   document.getElementById('jobForm')?.reset();
   document.getElementById('modalBackdrop').classList.add('open');
   const dateInput = document.querySelector('#jobForm input[type="date"]');
   if (dateInput) dateInput.valueAsDate = new Date();
+  setEstimatedCostDefault();
   await loadRepairOptions();
 }
 
-async function loadRepairOptions() {
+async function loadRepairOptions(selectedCustomerId = null, selectedDeviceId = null) {
   const customerSelect = document.getElementById('jobCustomer');
   const deviceSelect = document.getElementById('jobDevice');
   const technicianSelect = document.getElementById('jobTechnician');
+  const addCustomerButton = document.getElementById('jobCustomerAdd');
+  const addDeviceButton = document.getElementById('jobDeviceAdd');
+  if (addCustomerButton) {
+    addCustomerButton.remove();
+  }
   if (!customerSelect || !deviceSelect) return;
 
   try {
@@ -1001,17 +1089,56 @@ async function loadRepairOptions() {
     if (!response.ok) throw new Error(`Repair options request failed: ${response.status}`);
     const options = await response.json();
     customerSelect.innerHTML = '<option value="">Select customer</option>' + options.customers
-      .map(customer => `<option value="${customer.customerId}">${escapeHtml(customer.name)}</option>`).join('');
+      .map(customer => `<option value="${customer.customerId}">${escapeHtml(customer.name)}</option>`).join('') +
+      '<option value="__add_new_customer__">＋ Add New Customer</option>';
+
     const updateDevices = () => {
       const customerId = Number(customerSelect.value);
       const devices = options.devices.filter(device => device.customerId === customerId);
-      deviceSelect.disabled = devices.length === 0;
-      deviceSelect.innerHTML = `<option value="">${devices.length ? 'Select device' : 'No devices for this customer'}</option>` +
+      const hasDevices = devices.length > 0;
+      deviceSelect.disabled = !customerId || !hasDevices;
+      deviceSelect.innerHTML = `<option value="">${!customerId ? 'Select customer first' : hasDevices ? 'Select device' : 'No devices for this customer'}</option>` +
         devices.map(device => `<option value="${device.deviceId}">${escapeHtml(device.label.trim())}</option>`).join('');
+      if (addDeviceButton) {
+        addDeviceButton.style.display = !customerId || hasDevices ? 'none' : '';
+      }
+      if (selectedDeviceId && hasDevices) {
+        deviceSelect.value = String(selectedDeviceId);
+      }
     };
-    customerSelect.onchange = updateDevices;
-    deviceSelect.disabled = true;
-    deviceSelect.innerHTML = '<option value="">Select customer first</option>';
+    customerSelect.onchange = async () => {
+      if (customerSelect.value === '__add_new_customer__') {
+        customerSelect.value = '';
+        openCustomerModal(async (customer) => {
+          const customerId = Number(customer?.id ?? customer?.customerId ?? 0);
+          if (!customerId) return;
+          await loadRepairOptions(customerId);
+          customerSelect.value = String(customerId);
+          setEstimatedCostDefault();
+          updateDevices();
+        });
+        return;
+      }
+      updateDevices();
+    };
+    if (addDeviceButton) {
+      addDeviceButton.onclick = () => {
+        const customerId = Number(customerSelect.value);
+        if (!customerId) {
+          showActionMessage('Select a customer before adding a device.');
+          return;
+        }
+        openDeviceDialog({ customerId, deviceType: '' }, { returnToRepairForm: true });
+      };
+    }
+    if (selectedCustomerId) {
+      customerSelect.value = String(selectedCustomerId);
+    }
+    setEstimatedCostDefault();
+    updateDevices();
+    if (Number(customerSelect.value) && selectedDeviceId) {
+      deviceSelect.value = String(selectedDeviceId);
+    }
 
     if (technicianSelect) {
       state.assignableTechnicians = options.technicians;
@@ -1028,12 +1155,14 @@ function closeModal(){
   document.getElementById('modalBackdrop').classList.remove('open');
 }
 
-function openCustomerModal(){
+function openCustomerModal(onCustomerCreated = null){
+  window.__repairCustomerCreatedCallback = typeof onCustomerCreated === 'function' ? onCustomerCreated : null;
   document.getElementById('customerModalBackdrop').classList.add('open');
   document.getElementById('customerForm').reset();
 }
 
 function closeCustomerModal(){
+  window.__repairCustomerCreatedCallback = null;
   document.getElementById('customerModalBackdrop').classList.remove('open');
 }
 
@@ -1064,6 +1193,54 @@ function closeAssignmentModal() {
   state.assignmentJobId = null;
 }
 
+function openArchiveConfirmation(customer) {
+  return new Promise(resolve => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop open';
+    backdrop.innerHTML = `<section class="modal" role="dialog" aria-modal="true" aria-labelledby="archiveCustomerTitle"><div class="modal-header"><div><p class="eyebrow">Customer management</p><h2 id="archiveCustomerTitle">Archive customer</h2></div><button type="button" class="modal-close archive-cancel" aria-label="Close archive confirmation">×</button></div><div class="modal-body" style="padding:0 20px 12px;color:#53637a;font-size:14px;line-height:1.5;"><p>Archive <strong>${escapeHtml(customer.name)}</strong>? Their repair history will be kept.</p></div><div class="modal-actions"><button type="button" class="button button-ghost archive-cancel">Cancel</button><button type="button" class="button button-primary archive-confirm">Archive customer</button></div></section>`;
+    document.body.appendChild(backdrop);
+    const close = result => {
+      backdrop.remove();
+      resolve(result);
+    };
+    backdrop.querySelectorAll('.archive-cancel').forEach(button => button.onclick = () => close(false));
+    backdrop.querySelector('.archive-confirm').onclick = () => close(true);
+    backdrop.onclick = event => { if (event.target === backdrop) close(false); };
+  });
+}
+
+function openArchiveUserConfirmation(userName) {
+  return new Promise(resolve => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop open';
+    backdrop.innerHTML = `<section class="modal" role="dialog" aria-modal="true" aria-labelledby="archiveUserTitle"><div class="modal-header"><div><p class="eyebrow">User management</p><h2 id="archiveUserTitle">Archive user</h2></div><button type="button" class="modal-close archive-user-cancel" aria-label="Close archive confirmation">×</button></div><div class="modal-body" style="padding:0 20px 12px;color:#53637a;font-size:14px;line-height:1.5;"><p>Archive <strong>${escapeHtml(userName)}</strong>? This account will no longer be able to sign in.</p></div><div class="modal-actions"><button type="button" class="button button-ghost archive-user-cancel">Cancel</button><button type="button" class="button button-primary archive-user-confirm">Archive user</button></div></section>`;
+    document.body.appendChild(backdrop);
+    const close = result => {
+      backdrop.remove();
+      resolve(result);
+    };
+    backdrop.querySelectorAll('.archive-user-cancel').forEach(button => button.onclick = () => close(false));
+    backdrop.querySelector('.archive-user-confirm').onclick = () => close(true);
+    backdrop.onclick = event => { if (event.target === backdrop) close(false); };
+  });
+}
+
+function openDeleteUserConfirmation(userName) {
+  return new Promise(resolve => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop open';
+    backdrop.innerHTML = `<section class="modal" role="dialog" aria-modal="true" aria-labelledby="removeUserTitle"><div class="modal-header"><div><p class="eyebrow">User management</p><h2 id="removeUserTitle">Remove disabled account</h2></div><button type="button" class="modal-close remove-user-cancel" aria-label="Close remove confirmation">×</button></div><div class="modal-body" style="padding:0 20px 12px;color:#53637a;font-size:14px;line-height:1.5;"><p>Remove <strong>${escapeHtml(userName)}</strong> permanently? This action cannot be undone.</p></div><div class="modal-actions"><button type="button" class="button button-ghost remove-user-cancel">Cancel</button><button type="button" class="button button-primary remove-user-confirm">Remove account</button></div></section>`;
+    document.body.appendChild(backdrop);
+    const close = result => {
+      backdrop.remove();
+      resolve(result);
+    };
+    backdrop.querySelectorAll('.remove-user-cancel').forEach(button => button.onclick = () => close(false));
+    backdrop.querySelector('.remove-user-confirm').onclick = () => close(true);
+    backdrop.onclick = event => { if (event.target === backdrop) close(false); };
+  });
+}
+
 function openTechnicianProfile(technician) {
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop open';
@@ -1089,6 +1266,105 @@ function bindViewActions(){
 
   const newCustomer = document.getElementById('newCustomer');
   if (newCustomer) newCustomer.onclick = openCustomerModal;
+
+  const appearanceSelect = document.getElementById('appearanceSelect');
+  if (appearanceSelect) appearanceSelect.onchange = () => {
+    localStorage.setItem('techserve_appearance', appearanceSelect.value);
+    applyAppearance();
+  };
+
+  document.querySelectorAll('.archive-customer').forEach(button => {
+    button.onclick = async () => {
+      const customerId = Number(button.dataset.customerId);
+      const customer = state.customers.find(item => item.customerId === customerId);
+      if (!customer || !await openArchiveConfirmation(customer)) return;
+
+      const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+      try {
+        const response = await fetch(`/api/customers/${customerId}/archive`, {
+          method: 'POST',
+          headers: { RequestVerificationToken: token }
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          showActionMessage(payload.error || 'Customer could not be archived.');
+          return;
+        }
+        customer.status = payload.status || 'Archived';
+        state.customerStatusFilter = 'Active';
+        const contentEl = document.getElementById('content');
+        if (contentEl) contentEl.innerHTML = renderCustomers();
+        bindViewActions();
+        showActionMessage(`${customer.name} was archived.`);
+      } catch (error) {
+        console.warn('Unable to archive customer:', error);
+        showActionMessage('Unable to archive the customer. Please try again.');
+      }
+    };
+  });
+
+  document.querySelectorAll('.customer-view-profile').forEach(button => {
+    button.onclick = () => {
+      const customerIndex = state.customers.findIndex(item => item.customerId === Number(button.dataset.customerId));
+      if (customerIndex < 0) return;
+      state.crmCustomerIndex = customerIndex;
+      state.view = 'crm';
+      render();
+    };
+  });
+
+  document.querySelectorAll('[data-save-profile]').forEach(button => {
+    button.onclick = async () => {
+      const nameInput = document.getElementById('profileNameInput');
+      const pictureInput = document.getElementById('profilePictureInput');
+      const fullName = nameInput?.value.trim() || '';
+      if (fullName.length < 2) {
+        showActionMessage('Enter an admin name with at least 2 characters.');
+        return;
+      }
+
+      const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+      try {
+        const response = await fetch('/Auth/UpdateProfile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', RequestVerificationToken: token },
+          body: JSON.stringify({ fullName })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          showActionMessage(payload.error || 'Your profile could not be updated.');
+          return;
+        }
+
+        if (pictureInput?.files?.[0]) {
+          const file = pictureInput.files[0];
+          if (file.size > 2 * 1024 * 1024) {
+            showActionMessage('Profile pictures must be 2 MB or smaller.');
+            return;
+          }
+          const picture = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          const username = window.__TECHSERVE_USER__?.username || state.currentUserRole;
+          localStorage.setItem(`techserve_profile_picture_${username}`, picture);
+          if (window.__TECHSERVE_USER__) window.__TECHSERVE_USER__.picture = picture;
+        }
+        if (window.__TECHSERVE_USER__) window.__TECHSERVE_USER__.name = payload.fullName;
+        applyRoleProfile();
+        showActionMessage(payload.message || 'Profile updated successfully.');
+      } catch (error) {
+        console.warn('Unable to update profile:', error);
+        showActionMessage('Unable to update your profile. Please try again.');
+      }
+    };
+  });
+
+  document.querySelectorAll('[data-change-password]').forEach(button => {
+    button.onclick = openPasswordChangeModal;
+  });
 
   const addPart = document.querySelector('.inventory-actions .button-primary');
   if (addPart) addPart.onclick = () => openInventoryPartDialog();
@@ -1239,7 +1515,10 @@ function bindViewActions(){
   const viewSelect = document.querySelector('#content select');
   if (viewSelect && state.view === 'customers') viewSelect.onchange = () => {
     const selected = viewSelect.value;
-    document.querySelectorAll('#content tbody tr').forEach(row => { row.style.display = selected === 'All customers' || row.textContent.includes(selected) ? '' : 'none'; });
+    state.customerStatusFilter = selected;
+    const contentEl = document.getElementById('content');
+    if (contentEl) contentEl.innerHTML = renderCustomers();
+    bindViewActions();
   };
   if (viewSelect && state.view === 'billing') viewSelect.onchange = () => {
     const selected = viewSelect.value;
@@ -1463,16 +1742,95 @@ if (assignmentModalBackdrop) {
   };
 }
 
+const passwordChangeModalClose = document.getElementById('passwordChangeModalClose');
+if (passwordChangeModalClose) passwordChangeModalClose.onclick = closePasswordChangeModal;
+
+const passwordChangeModalCancel = document.getElementById('passwordChangeModalCancel');
+if (passwordChangeModalCancel) passwordChangeModalCancel.onclick = closePasswordChangeModal;
+
+const passwordChangeModalBackdrop = document.getElementById('passwordChangeModalBackdrop');
+if (passwordChangeModalBackdrop) {
+  passwordChangeModalBackdrop.onclick = e => {
+    if (e.target.id === 'passwordChangeModalBackdrop') closePasswordChangeModal();
+  };
+}
+
+const passwordChangeForm = document.getElementById('passwordChangeForm');
+if (passwordChangeForm) {
+  passwordChangeForm.onsubmit = async (event) => {
+    event.preventDefault();
+
+    const currentPassword = document.getElementById('currentPassword')?.value ?? '';
+    const newPassword = document.getElementById('newPassword')?.value ?? '';
+    const confirmPassword = document.getElementById('confirmPassword')?.value ?? '';
+    const message = document.getElementById('passwordChangeMessage');
+
+    const showPasswordMessage = (text, isSuccess = false) => {
+      if (!message) return;
+      message.textContent = text;
+      message.className = `form-message ${isSuccess ? 'success' : 'error'}`;
+    };
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      showPasswordMessage('Please complete all password fields.');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      showPasswordMessage('The new password must be at least 8 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showPasswordMessage('The new passwords do not match.');
+      return;
+    }
+
+    try {
+      const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+      const response = await fetch('/Auth/ChangePassword', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          RequestVerificationToken: token
+        },
+        body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showPasswordMessage(payload.error || 'The password could not be changed.');
+        return;
+      }
+
+      showPasswordMessage(payload.message || 'Password changed successfully.', true);
+      passwordChangeForm.reset();
+      window.setTimeout(closePasswordChangeModal, 1000);
+    } catch (error) {
+      console.warn('Unable to change password:', error);
+      showPasswordMessage('Unable to update your password. Please try again.');
+    }
+  };
+}
+
 const jobForm = document.getElementById('jobForm');
 if (jobForm) {
   jobForm.onsubmit = async e => {
     e.preventDefault();
+    const customerId = Number(document.getElementById('jobCustomer')?.value);
+    const deviceId = Number(document.getElementById('jobDevice')?.value);
+    const complaint = document.getElementById('jobComplaint')?.value.trim() || '';
+    if (!customerId || !deviceId || !complaint) {
+      showActionMessage('Please select a customer, device, and problem before creating the repair job.');
+      return;
+    }
+
     const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
     const request = {
-      customerId: Number(document.getElementById('jobCustomer')?.value),
-      deviceId: Number(document.getElementById('jobDevice')?.value),
+      customerId,
+      deviceId,
       technicianId: Number(document.getElementById('jobTechnician')?.value) || null,
-      complaint: document.getElementById('jobComplaint')?.value.trim() || '',
+      complaint,
       priority: document.getElementById('jobPriority')?.value || 'Normal',
       expectedCompletionDate: document.querySelector('#jobForm input[type="date"]')?.value || null,
       estimatedCost: Number(document.getElementById('jobEstimatedCost')?.value) || null
@@ -1523,19 +1881,29 @@ if (customerForm) {
         body: JSON.stringify({ name, contact, email, address })
       });
       if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'The customer could not be saved.' }));
         if (emailEl) {
-          emailEl.setCustomValidity('The customer could not be saved.');
+          emailEl.setCustomValidity(error.error || 'The customer could not be saved.');
           emailEl.reportValidity();
         }
         return;
       }
+      const createdCustomer = await response.json();
+      logActivity('customer_created', name);
+      const repairCustomerCreatedCallback = window.__repairCustomerCreatedCallback;
+      closeCustomerModal();
+
+      if (typeof repairCustomerCreatedCallback === 'function') {
+        await repairCustomerCreatedCallback(createdCustomer);
+        window.__repairCustomerCreatedCallback = null;
+      } else {
+        state.view = 'customers';
+        render();
+      }
     } catch (err) {
       console.warn('Saving customer locally:', err);
+      showActionMessage('Unable to save the customer. Please try again.');
     }
-    logActivity('customer_created', name);
-    closeCustomerModal();
-    state.view = 'customers';
-    render();
   };
 }
 
@@ -1638,6 +2006,22 @@ if (inviteUserModal) {
     if (event.target === inviteUserModal) setInviteUserModalOpen(false);
   });
 }
+document.querySelectorAll('.user-archive-form').forEach(form => {
+  form.onsubmit = async event => {
+    event.preventDefault();
+    if (await openArchiveUserConfirmation(form.dataset.userName || 'this user')) {
+      HTMLFormElement.prototype.submit.call(form);
+    }
+  };
+});
+document.querySelectorAll('.user-delete-form').forEach(form => {
+  form.onsubmit = async event => {
+    event.preventDefault();
+    if (await openDeleteUserConfirmation(form.dataset.userName || 'this account')) {
+      HTMLFormElement.prototype.submit.call(form);
+    }
+  };
+});
 if (window.location.hash === '#user-management') {
   window.setTimeout(() => document.getElementById('user-management')?.scrollIntoView({ block: 'start' }), 0);
 }
@@ -1679,8 +2063,9 @@ function openActionDialog(title, fields, onSubmit) {
   };
 }
 
-async function openDeviceDialog(device = null) {
+async function openDeviceDialog(device = null, { returnToRepairForm = false } = {}) {
   try {
+    const isEditing = Boolean(device?.deviceId);
     const response = await fetch('/api/customers');
     if (!response.ok) throw new Error(`Customer request failed: ${response.status}`);
     const customers = await response.json();
@@ -1694,7 +2079,7 @@ async function openDeviceDialog(device = null) {
       { name: 'condition', label: 'Condition', value: device?.condition, maxLength: 40 },
       { name: 'accessories', label: 'Accessories', value: device?.accessories, maxLength: 300 }
     ];
-    openActionDialog(device ? 'Edit device' : 'Register device', fields, async values => {
+    openActionDialog(isEditing ? 'Edit device' : 'Register device', fields, async values => {
       const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
       const request = {
         customerId: Number(values.customerId),
@@ -1707,8 +2092,8 @@ async function openDeviceDialog(device = null) {
         accessories: values.accessories
       };
       try {
-        const saveResponse = await fetch(device ? `/api/devices/${device.deviceId}` : '/api/devices', {
-          method: device ? 'PUT' : 'POST',
+        const saveResponse = await fetch(isEditing ? `/api/devices/${device.deviceId}` : '/api/devices', {
+          method: isEditing ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json', RequestVerificationToken: token },
           body: JSON.stringify(request)
         });
@@ -1717,10 +2102,21 @@ async function openDeviceDialog(device = null) {
           showActionMessage(error.error || 'Device could not be saved.');
           return false;
         }
-        state.view = 'devices';
-        state.devicesLoaded = false;
-        await loadLiveDevices();
-        showActionMessage(device ? 'Device updated.' : 'Device registered.');
+
+        const savedDevice = await saveResponse.json().catch(() => null);
+        const repairCustomerSelect = document.getElementById('jobCustomer');
+        const repairDeviceSelect = document.getElementById('jobDevice');
+        if (!isEditing && returnToRepairForm && repairCustomerSelect && repairDeviceSelect && Number(repairCustomerSelect.value) === Number(request.customerId)) {
+          await loadRepairOptions(Number(repairCustomerSelect.value), savedDevice?.deviceId ?? null);
+          repairDeviceSelect.value = String(savedDevice?.deviceId ?? (repairDeviceSelect.value || ''));
+        }
+
+        if (!returnToRepairForm) {
+          state.view = 'devices';
+          state.devicesLoaded = false;
+          await loadLiveDevices();
+        }
+        showActionMessage(isEditing ? 'Device updated.' : 'Device registered.');
         return true;
       } catch (error) {
         console.warn('Unable to save device:', error);

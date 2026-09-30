@@ -34,14 +34,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@ViewData["Title"] - TechServe</title>
     <link rel="icon" type="image/png" href="~/images/techserve-logo.png" />
-    <link rel="stylesheet" href="~/css/app.css?v=sidebar-links-1" />
+    <link rel="stylesheet" href="~/css/app.css?v=chart-animations-1" />
     <link rel="stylesheet" href="~/css/responsive.css?v=sidebar-scrollbar-restore-4" />
     <link rel="stylesheet" href="~/css/dashboard-scroll.css?v=1" />
     <link rel="stylesheet" href="~/css/repair-tracking.css?v=1" />
     <link rel="stylesheet" href="~/css/user-management.css" />
 </head>
 <body>
-<div class="app-shell" id="appShell" data-page="@pageKey" data-role="@roleKey" data-name="@displayName" data-workspace="@workspaceName">
+<div class="app-shell" id="appShell" data-page="@pageKey" data-role="@roleKey" data-name="@displayName" data-username="@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value" data-workspace="@workspaceName">
     <aside class="sidebar" id="sidebar">
         <div class="brand"><img class="brand-logo brand-logo-sidebar" src="~/images/techserve-logo.png" alt="TechServe logo" /></div>
         <div class="workspace-switcher">
@@ -89,6 +89,6 @@
         @RenderBody()
     </main>
 </div>
-<script src="~/js/app.js?v=devices-persistence-1"></script>
+<script src="~/js/app.js?v=appearance-toggle-1"></script>
 </body>
 </html>

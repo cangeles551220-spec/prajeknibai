@@ -14,6 +14,7 @@ public sealed class UserService
     };
     private static readonly ConcurrentDictionary<string, (string Code, DateTime ExpiresAt)> resetCodes = new(StringComparer.OrdinalIgnoreCase);
     private readonly TechServeDatabase? database;
+    private readonly IEmailSender? emailSender;
     private readonly PasswordHasher<string> passwordHasher = new();
     private readonly Dictionary<string, (string Password, string Role, string Name)> knownUsers = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -25,9 +26,10 @@ public sealed class UserService
         ["billing"] = ("Billing123", "BILLING", "Billing Staff")
     };
 
-    public UserService(TechServeDatabase? database = null)
+    public UserService(TechServeDatabase? database = null, IEmailSender? emailSender = null)
     {
         this.database = database;
+        this.emailSender = emailSender;
     }
 
     public async Task<bool> ValidateCredentialsAsync(string? username, string? password)
@@ -70,7 +72,7 @@ public sealed class UserService
         }
         catch (SqlException) when (database is not null)
         {
-            // Continue with the local demo accounts when LocalDB is unavailable.
+            return null;
         }
 
         if (user is not null)
@@ -81,13 +83,7 @@ public sealed class UserService
             }
         }
 
-        if (!knownUsers.TryGetValue(normalizedUsername, out var fallbackUser) ||
-            !string.Equals(normalizedPassword, fallbackUser.Password, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        return new AuthenticatedUser(normalizedUsername, fallbackUser.Name, fallbackUser.Role);
+        return null;
     }
 
     public async Task EnsureSeedUsersAsync(CancellationToken cancellationToken = default)
@@ -151,6 +147,9 @@ public sealed class UserService
     public Task<bool> DeactivateUserAsync(int userId, CancellationToken cancellationToken = default) =>
         database?.DeactivateUserAsync(userId, cancellationToken) ?? Task.FromResult(false);
 
+    public Task<bool> DeleteUserAsync(int userId, CancellationToken cancellationToken = default) =>
+        database?.DeleteUserAsync(userId, cancellationToken) ?? Task.FromResult(false);
+
     public async Task<bool> CompleteInvitationAsync(string? token, string? password, CancellationToken cancellationToken = default)
     {
         if (database is null || string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(password) || password.Trim().Length < 8)
@@ -170,12 +169,22 @@ public sealed class UserService
         }
 
         var normalizedEmail = email.Trim().ToLowerInvariant();
-        if (await FindUserAsync(normalizedEmail, cancellationToken) is null && !knownUsers.ContainsKey(normalizedEmail))
+        if (await FindUserAsync(normalizedEmail, cancellationToken) is null || emailSender is null)
         {
             return false;
         }
 
         var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+        var sent = await emailSender.SendAsync(
+            normalizedEmail,
+            "TechServe password reset code",
+            $"Your password reset code is {code}. It expires in 15 minutes.",
+            cancellationToken);
+        if (!sent)
+        {
+            return false;
+        }
+
         resetCodes[normalizedEmail] = (code, DateTime.UtcNow.AddMinutes(15));
         return true;
     }
@@ -208,6 +217,81 @@ public sealed class UserService
         }
 
         knownUsers[normalizedEmail] = (newPassword.Trim(), existingUser.Role, existingUser.Name);
+        return true;
+    }
+
+    public async Task<bool> ChangePasswordAsync(string? username, string? currentPassword, string? newPassword, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(currentPassword) || string.IsNullOrWhiteSpace(newPassword))
+        {
+            return false;
+        }
+
+        var normalizedUsername = username.Trim();
+        var normalizedCurrentPassword = currentPassword.Trim();
+        var normalizedNewPassword = newPassword.Trim();
+
+        if (normalizedNewPassword.Length < 8 || string.Equals(normalizedCurrentPassword, normalizedNewPassword, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (database is not null)
+        {
+            var user = await FindUserAsync(normalizedUsername, cancellationToken);
+            if (user is null)
+            {
+                return false;
+            }
+
+            if (passwordHasher.VerifyHashedPassword(user.Username, user.PasswordHash, normalizedCurrentPassword) == PasswordVerificationResult.Failed)
+            {
+                return false;
+            }
+
+            await database.UpdatePasswordAsync(user.Email, passwordHasher.HashPassword(user.Email, normalizedNewPassword), cancellationToken);
+            return true;
+        }
+
+        if (!knownUsers.TryGetValue(normalizedUsername, out var existingUser))
+        {
+            return false;
+        }
+
+        if (!string.Equals(normalizedCurrentPassword, existingUser.Password, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        knownUsers[normalizedUsername] = (normalizedNewPassword, existingUser.Role, existingUser.Name);
+        return true;
+    }
+
+    public async Task<bool> UpdateProfileNameAsync(string? username, string? fullName, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(fullName))
+        {
+            return false;
+        }
+
+        var normalizedUsername = username.Trim();
+        var normalizedName = fullName.Trim();
+        if (normalizedName.Length < 2 || normalizedName.Length > 120)
+        {
+            return false;
+        }
+
+        if (database is not null)
+        {
+            return await database.UpdateUserFullNameAsync(normalizedUsername, normalizedName, cancellationToken);
+        }
+
+        if (!knownUsers.TryGetValue(normalizedUsername, out var existingUser))
+        {
+            return false;
+        }
+
+        knownUsers[normalizedUsername] = (existingUser.Password, existingUser.Role, normalizedName);
         return true;
     }
 

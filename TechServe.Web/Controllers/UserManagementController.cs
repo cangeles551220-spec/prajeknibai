@@ -80,6 +80,14 @@ public sealed class UserManagementController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id, string? returnUrl, CancellationToken cancellationToken)
+    {
+        await userService.DeleteUserAsync(id, cancellationToken);
+        return RedirectToAction(nameof(Index));
+    }
+
     private bool IsUserManagementReturn(string? returnUrl) =>
         !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl) &&
         (returnUrl.StartsWith("/Admin/UserManagement", StringComparison.OrdinalIgnoreCase) ||

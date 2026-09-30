@@ -8,6 +8,7 @@ public sealed class UserManagementViewModel
     public InviteUserInput Invite { get; init; } = new();
     public string? InvitationUrl { get; init; }
     public string? ErrorMessage { get; init; }
+    public bool ShowArchived { get; init; }
     public int TotalUsers => Users.Count;
     public int ActiveUsers => Users.Count(user => user.IsActive);
     public int Administrators => Users.Count(user => string.Equals(user.Role, "ADMIN", StringComparison.OrdinalIgnoreCase));

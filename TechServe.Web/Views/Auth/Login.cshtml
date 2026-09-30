@@ -10,7 +10,7 @@
     <title>TechServe | Login</title>
     <link rel="stylesheet" href="~/css/app.css" />
     <link rel="stylesheet" href="~/css/responsive.css" />
-        <link rel="stylesheet" href="~/css/auth.css?v=login-hero-link-1" />
+        <link rel="stylesheet" href="~/css/auth.css?v=remember-me-layout-1" />
 </head>
 <body>
     <div class="login-screen">
@@ -59,6 +59,8 @@
                         </div>
                         <div class="password-field"><input asp-for="Password" type="password" placeholder="Enter password" autocomplete="current-password" required /><button type="button" class="password-toggle" data-password-target="Password" aria-label="Show password" title="Show password">◉</button></div>
                     </div>
+
+                    <label class="remember-me"><input asp-for="RememberMe" type="checkbox" /> <span>Remember Me</span></label>
 
                     @if (!string.IsNullOrWhiteSpace(Model?.SuccessMessage))
                     {

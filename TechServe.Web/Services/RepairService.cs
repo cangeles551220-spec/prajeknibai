@@ -153,7 +153,7 @@ public sealed class RepairService
             ExpectedCompletionDate = request.ExpectedCompletionDate?.Date,
             EstimatedCost = request.EstimatedCost,
             Priority = request.Priority,
-            RepairStatus = "Received"
+            RepairStatus = "Pending"
         };
         database.RepairJobs.Add(job);
         database.RepairStatusHistories.Add(new RepairStatusHistory

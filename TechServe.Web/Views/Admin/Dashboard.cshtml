@@ -12,12 +12,23 @@
         <div class="modal-header"><div><p class="eyebrow">Quick action</p><h2 id="modalTitle">New repair job</h2></div><button class="modal-close" id="modalClose">×</button></div>
         <form id="jobForm">
             <div class="form-grid">
-                <label>Customer<select id="jobCustomer" required><option value="">Select customer</option></select></label>
-                <label>Device<select id="jobDevice" required disabled><option value="">Select customer first</option></select></label>
-                <label class="wide">Problem / complaint<textarea id="jobComplaint" required maxlength="500" placeholder="Describe the customer's complaint..."></textarea></label>
+                <label>
+                    <span>Customer</span><span style="color:#d63d3d; margin-left:4px">*</span>
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+                        <select id="jobCustomer" required style="flex:1"><option value="">Select customer</option></select>
+                    </div>
+                </label>
+                <label>
+                    <span>Device</span><span style="color:#d63d3d; margin-left:4px">*</span>
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+                        <select id="jobDevice" required disabled style="flex:1"><option value="">Select customer first</option></select>
+                        <button type="button" class="button button-ghost" id="jobDeviceAdd" style="display:none; white-space:nowrap;">＋ Add Device</button>
+                    </div>
+                </label>
+                <label class="wide"><span>Problem / complaint</span><span style="color:#d63d3d; margin-left:4px">*</span><textarea id="jobComplaint" required maxlength="500" placeholder="Describe the customer's complaint..."></textarea></label>
                 <label>Priority<select id="jobPriority"><option>Normal</option><option>High</option><option>Urgent</option></select></label>
-                <label>Expected completion<input type="date" required></label>
-                <label>Estimated cost<input id="jobEstimatedCost" type="number" min="0" step="0.01" placeholder="0.00"></label>
+                <label><span>Expected completion</span><span style="color:#d63d3d; margin-left:4px">*</span><input type="date" required></label>
+                <label>Estimated cost<input id="jobEstimatedCost" type="number" min="0" step="0.01" value="0.00" placeholder="₱0.00"></label>
                 <label>Technician<select id="jobTechnician"><option value="">Unassigned</option></select></label>
             </div>
             <div class="modal-actions"><button type="button" class="button button-ghost" id="modalCancel">Cancel</button><button type="submit" class="button button-primary">Create repair job</button></div>
@@ -30,9 +41,9 @@
         <div class="modal-header"><div><p class="eyebrow">Customer management</p><h2 id="customerModalTitle">Add customer</h2></div><button class="modal-close" id="customerModalClose">×</button></div>
         <form id="customerForm">
             <div class="form-grid">
-                <label>Full name<input id="customerName" required placeholder="Customer full name"></label>
-                <label>Contact number<input id="customerContact" required placeholder="+1 (555) 000-0000"></label>
-                <label>Email<input id="customerEmail" type="email" required placeholder="customer@email.com"></label>
+                <label><span>Full name</span><span style="color:#d63d3d; margin-left:4px">*</span><input id="customerName" required placeholder="Customer full name"></label>
+                <label><span>Contact number</span><span style="color:#d63d3d; margin-left:4px">*</span><input id="customerContact" required placeholder="09XX XXX XXXX"></label>
+                <label><span>Email</span><span style="color:#d63d3d; margin-left:4px">*</span><input id="customerEmail" type="email" required placeholder="customer@email.com"></label>
                 <label class="wide">Address<textarea id="customerAddress" placeholder="Customer address"></textarea></label>
             </div>
             <div class="modal-actions"><button type="button" class="button button-ghost" id="customerModalCancel">Cancel</button><button type="submit" class="button button-primary">Add customer</button></div>
@@ -47,6 +58,21 @@
             <label>Repair job<select id="assignmentJob" required><option value="">Select a repair job</option></select></label>
             <label>Technician<select id="assignmentTechnician" required><option value="">Select a technician</option></select></label>
             <div class="modal-actions"><button type="button" class="button button-ghost" id="assignmentModalCancel">Cancel</button><button type="submit" class="button button-primary">Save assignment</button></div>
+        </form>
+    </section>
+</div>
+
+<div class="modal-backdrop" id="passwordChangeModalBackdrop">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="passwordChangeModalTitle">
+        <div class="modal-header"><div><p class="eyebrow">Security</p><h2 id="passwordChangeModalTitle">Change password</h2></div><button class="modal-close" id="passwordChangeModalClose">×</button></div>
+        <form id="passwordChangeForm">
+            <div class="form-grid">
+                <label><span>Current password</span><span style="color:#d63d3d; margin-left:4px">*</span><input id="currentPassword" type="password" autocomplete="current-password" required placeholder="Enter your current password"></label>
+                <label><span>New password</span><span style="color:#d63d3d; margin-left:4px">*</span><input id="newPassword" type="password" autocomplete="new-password" required placeholder="At least 8 characters"></label>
+                <label><span>Confirm new password</span><span style="color:#d63d3d; margin-left:4px">*</span><input id="confirmPassword" type="password" autocomplete="new-password" required placeholder="Re-enter the new password"></label>
+            </div>
+            <p id="passwordChangeMessage" class="form-message" aria-live="polite"></p>
+            <div class="modal-actions"><button type="button" class="button button-ghost" id="passwordChangeModalCancel">Cancel</button><button type="submit" class="button button-primary">Update password</button></div>
         </form>
     </section>
 </div>

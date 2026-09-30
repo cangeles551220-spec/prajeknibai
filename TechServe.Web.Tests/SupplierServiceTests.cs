@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using TechServe.Web.Data;
 using TechServe.Web.Services;
 using Xunit;
 
@@ -6,21 +8,21 @@ namespace TechServe.Web.Tests;
 public sealed class SupplierServiceTests
 {
     [Fact]
-    public async Task GetSuppliersAsync_IncludesCoreVendors()
+    public async Task GetSuppliersAsync_ReturnsEmptyWhenNoSuppliersExist()
     {
-        var service = new SupplierService();
+        using var database = CreateDatabase();
+        var service = new SupplierService(database);
 
         var suppliers = await service.GetSuppliersAsync();
 
-        Assert.Contains(suppliers, s => s.Name == "TechSource Supply");
-        Assert.Contains(suppliers, s => s.Name == "PartsHub");
-        Assert.Contains(suppliers, s => s.Name == "MobileFix Co.");
+        Assert.Empty(suppliers);
     }
 
     [Fact]
     public async Task AddSupplierAsync_CreatesSupplierWithDefaults()
     {
-        var service = new SupplierService();
+        using var database = CreateDatabase();
+        var service = new SupplierService(database);
 
         var created = await service.AddSupplierAsync("Northwind Components", "Motherboards");
 
@@ -33,7 +35,8 @@ public sealed class SupplierServiceTests
     [Fact]
     public async Task UpdateSupplierAsync_UpdatesExistingSupplierDetails()
     {
-        var service = new SupplierService();
+        using var database = CreateDatabase();
+        var service = new SupplierService(database);
         var created = await service.AddSupplierAsync("Atlas Hardware", "Displays");
 
         var updated = await service.UpdateSupplierAsync(new SupplierItem
@@ -51,4 +54,9 @@ public sealed class SupplierServiceTests
         Assert.Equal("ops@atlashardware.example", updated.ContactEmail);
         Assert.Equal("Inactive", updated.Status);
     }
+
+    private static ApplicationDbContext CreateDatabase() => new(
+        new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options);
 }

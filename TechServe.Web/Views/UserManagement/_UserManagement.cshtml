@@ -29,7 +29,7 @@
     </div>
 
     <section class="panel user-management-users">
-        <div class="panel-header user-table-header"><div><h3>Existing users</h3><p>Only active accounts can sign in.</p></div><span class="muted">@Model.TotalUsers accounts</span></div>
+        <div class="panel-header user-table-header"><div><h3>Existing users</h3><p>Only active accounts can sign in.</p></div><div style="display:flex;align-items:center;gap:12px"><a class="button button-ghost" href="/Admin/UserManagement@(Model.ShowArchived ? string.Empty : "?showArchived=true")">@(Model.ShowArchived ? "Hide archived" : "Show archived")</a><span class="muted">@Model.TotalUsers accounts</span></div></div>
         <div class="table-wrap">
             <table class="data-table user-management-table">
                 <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
@@ -53,16 +53,28 @@
                         <td>
                             @if (user.IsActive && !string.Equals(user.Role, "ADMIN", StringComparison.OrdinalIgnoreCase))
                             {
-                                <form asp-controller="UserManagement" asp-action="Deactivate" method="post">
+                                <form asp-controller="UserManagement" asp-action="Deactivate" method="post" class="user-archive-form" data-user-name="@user.FullName" style="display:inline-block">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@user.Id" />
                                     <input type="hidden" name="returnUrl" value="/Admin/UserManagement" />
-                                    <button type="submit" class="button button-ghost user-disable-button">Disable</button>
+                                    <button type="submit" class="button button-ghost user-archive-button">Archive</button>
                                 </form>
                             }
                             else
                             {
-                                <span class="muted">—</span>
+                                @if (!string.Equals(user.Role, "ADMIN", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <form asp-controller="UserManagement" asp-action="Delete" method="post" class="user-delete-form" data-user-name="@user.FullName" style="display:inline-block">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@user.Id" />
+                                        <input type="hidden" name="returnUrl" value="/Admin/UserManagement?showArchived=true" />
+                                        <button type="submit" class="button button-ghost user-delete-button">Remove</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
                             }
                         </td>
                     </tr>

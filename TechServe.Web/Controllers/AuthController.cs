@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using TechServe.Web.Models;
 using TechServe.Web.Services;
@@ -47,7 +48,15 @@ public sealed class AuthController : Controller
             new Claim(ClaimTypes.Name, user.FullName),
             new Claim(ClaimTypes.Role, user.Role)
         };
-        await HttpContext.SignInAsync("TechServeCookie", new ClaimsPrincipal(new ClaimsIdentity(claims, "TechServeCookie")));
+        await HttpContext.SignInAsync(
+            "TechServeCookie",
+            new ClaimsPrincipal(new ClaimsIdentity(claims, "TechServeCookie")),
+            new AuthenticationProperties
+            {
+                IsPersistent = model.RememberMe,
+                AllowRefresh = true,
+                ExpiresUtc = model.RememberMe ? DateTimeOffset.UtcNow.AddDays(30) : null
+            });
 
         return user.Role switch
         {
@@ -64,6 +73,83 @@ public sealed class AuthController : Controller
     public IActionResult SetPassword(string? token)
     {
         return View(new InvitationSetupViewModel { Token = token ?? string.Empty });
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        if (request is null)
+        {
+            return BadRequest(new { error = "Request body is required." });
+        }
+
+        var username = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return Unauthorized();
+        }
+
+        var currentPassword = request.CurrentPassword?.Trim() ?? string.Empty;
+        var newPassword = request.NewPassword?.Trim() ?? string.Empty;
+        var confirmPassword = request.ConfirmPassword?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(currentPassword) || string.IsNullOrWhiteSpace(newPassword) || string.IsNullOrWhiteSpace(confirmPassword))
+        {
+            return BadRequest(new { error = "Complete all password fields." });
+        }
+
+        if (!string.Equals(newPassword, confirmPassword, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "The new passwords do not match." });
+        }
+
+        if (newPassword.Length < 8)
+        {
+            return BadRequest(new { error = "The new password must be at least 8 characters long." });
+        }
+
+        if (string.Equals(newPassword, currentPassword, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "The new password must be different from your current password." });
+        }
+
+        if (!await userService.ChangePasswordAsync(username, currentPassword, newPassword, HttpContext.RequestAborted))
+        {
+            return BadRequest(new { error = "Your current password is incorrect." });
+        }
+
+        return Ok(new { message = "Password changed successfully." });
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    {
+        var username = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var fullName = request?.FullName?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(username) || fullName.Length < 2 || fullName.Length > 120)
+        {
+            return BadRequest(new { error = "Enter a name between 2 and 120 characters." });
+        }
+
+        if (!await userService.UpdateProfileNameAsync(username, fullName, HttpContext.RequestAborted))
+        {
+            return BadRequest(new { error = "Your profile could not be updated." });
+        }
+
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? "STAFF";
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, username),
+            new Claim(ClaimTypes.Name, fullName),
+            new Claim(ClaimTypes.Role, role)
+        };
+        await HttpContext.SignInAsync("TechServeCookie", new ClaimsPrincipal(new ClaimsIdentity(claims, "TechServeCookie")));
+
+        return Ok(new { fullName, message = "Profile updated successfully." });
     }
 
     [HttpPost]
@@ -108,7 +194,7 @@ public sealed class AuthController : Controller
         {
             if (!await userService.RequestPasswordResetAsync(model.Email, HttpContext.RequestAborted))
             {
-                model.ErrorMessage = "No account is registered with that email address.";
+                model.ErrorMessage = "We could not send a reset code. Check the email address or contact an administrator.";
                 return View(model);
             }
 
@@ -140,4 +226,7 @@ public sealed class AuthController : Controller
         await HttpContext.SignOutAsync("TechServeCookie");
         return RedirectToAction(nameof(Login));
     }
+
+    public sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword, string? ConfirmPassword);
+    public sealed record UpdateProfileRequest(string? FullName);
 }

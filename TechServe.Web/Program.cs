@@ -24,6 +24,8 @@ builder.Services.AddAuthentication("TechServeCookie")
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<TechServeDatabase>();
 builder.Services.AddScoped<TechServe.Web.Services.UserService>();
+builder.Services.AddScoped<TechServe.Web.Services.IEmailSender, TechServe.Web.Services.SmtpEmailSender>();
+builder.Services.AddScoped<TechServe.Web.Services.UserService>();
 builder.Services.AddScoped<TechServe.Web.Services.ProductService>();
 builder.Services.AddScoped<TechServe.Web.Services.SupplierService>();
 builder.Services.AddScoped<TechServe.Web.Services.SalesService>();
@@ -117,6 +119,11 @@ app.MapPost("/api/customers", async (CustomerInput input, TechServeDatabase data
     }
     return Results.Created("/api/customers", await database.AddCustomerAsync(input, cancellationToken));
 }).RequireAuthorization(new AuthorizeAttribute { Roles = "ADMIN,MANAGER,STAFF,BILLING" });
+app.MapPost("/api/customers/{customerId:int}/archive", async (int customerId, TechServeDatabase database, CancellationToken cancellationToken) =>
+{
+    var archived = await database.ArchiveCustomerAsync(customerId, cancellationToken);
+    return archived ? Results.Ok(new { customerId, status = "Archived" }) : Results.NotFound(new { error = "Customer was not found or is already archived." });
+}).RequireAuthorization(new AuthorizeAttribute { Roles = "ADMIN,MANAGER" });
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");

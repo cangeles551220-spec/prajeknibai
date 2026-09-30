@@ -32,16 +32,18 @@ public sealed class AdminController : Controller
 
     [Authorize(Roles = "ADMIN")]
     [HttpGet]
-    public async Task<IActionResult> UserManagement(CancellationToken cancellationToken)
+    public async Task<IActionResult> UserManagement(bool showArchived, CancellationToken cancellationToken)
     {
         var users = (await userService.GetUsersAsync(cancellationToken))
+            .Where(user => showArchived || user.IsActive)
             .Select(user => new UserSummary(user.Id, user.FullName, user.Email, user.Role, user.IsActive, !string.IsNullOrEmpty(user.InvitationTokenHash)))
             .ToArray();
         return View(new UserManagementViewModel
         {
             Users = users,
             InvitationUrl = TempData["InvitationUrl"] as string,
-            ErrorMessage = TempData["UserManagementError"] as string
+            ErrorMessage = TempData["UserManagementError"] as string,
+            ShowArchived = showArchived
         });
     }
 }
